@@ -1,121 +1,241 @@
-<table width="100%">
-  <tr>
-    <td align="left" width="120">
-      <img src="apps/web/public/logos/opencut/1k/logo-white-black.png" alt="OpenCut Logo" width="100" />
-    </td>
-    <td align="right">
-      <h1>OpenCut</span></h1>
-      <h3 style="margin-top: -10px;">A free, open-source video editor for web, desktop, and mobile.</h3>
-    </td>
-  </tr>
-</table>
+# ObenCut - AI-Powered Video Editor
 
-## Sponsors
+<div align="center">
 
-Thanks to [Vercel](https://vercel.com?utm_source=github-opencut&utm_campaign=oss) and [fal.ai](https://fal.ai?utm_source=github-opencut&utm_campaign=oss) for their support of open-source software.
+<img src="apps/web/public/logos/opencut/1k/logo-white-black.png" alt="ObenCut Logo" width="100" />
 
-<a href="https://vercel.com/oss">
-  <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" />
-</a>
+**A free, open-source AI-powered video editor for web, desktop, and mobile.**
 
-<a href="https://fal.ai">
-  <img alt="Powered by fal.ai" src="https://img.shields.io/badge/Powered%20by-fal.ai-000000?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCAxMEwxMy4wOSAxNS43NEwxMiAyMkwxMC45MSAxNS43NEw0IDEwTDEwLjkxIDguMjZMMTIgMloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=" />
-</a>
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Next.js](https://img.shields.io/badge/Next.js-black)](https://nextjs.org/)
+[![Bun](https://img.shields.io/badge/Bun-black)](https://bun.sh/)
 
-## Why?
-
-- **Privacy**: Your videos stay on your device
-- **Free features**: Most basic CapCut features are now paywalled 
-- **Simple**: People want editors that are easy to use - CapCut proved that
-
-## Features
-
-- Timeline-based editing
-- Multi-track support
-- Real-time preview
-- No watermarks or subscriptions
-- Analytics provided by [Databuddy](https://www.databuddy.cc?utm_source=opencut), 100% Anonymized & Non-invasive.
-- Blog powered by [Marble](https://marblecms.com?utm_source=opencut), Headless CMS.
-
-## Project Structure
-
-- `apps/web/` – Main Next.js web application
-- `src/components/` – UI and editor components
-- `src/hooks/` – Custom React hooks
-- `src/lib/` – Utility and API logic
-- `src/stores/` – State management (Zustand, etc.)
-- `src/types/` – TypeScript types
-
-## Getting Started
-
-### Prerequisites
-
-- [Bun](https://bun.sh/docs/installation)
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-
-> **Note:** Docker is optional but recommended for running the local database and Redis. If you only want to work on frontend features, you can skip it.
-
-### Setup
-
-1. Fork and clone the repository
-
-2. Copy the environment file:
-
-   ```bash
-   # Unix/Linux/Mac
-   cp apps/web/.env.example apps/web/.env.local
-
-   # Windows PowerShell
-   Copy-Item apps/web/.env.example apps/web/.env.local
-   ```
-
-3. Start the database and Redis:
-
-   ```bash
-   docker compose up -d db redis serverless-redis-http
-   ```
-
-4. Install dependencies and start the dev server:
-
-   ```bash
-   bun install
-   bun dev:web
-   ```
-
-The application will be available at [http://localhost:3000](http://localhost:3000).
-
-The `.env.example` has sensible defaults that match the Docker Compose config — it should work out of the box.
-
-### Self-Hosting with Docker
-
-To run everything (including a production build of the app) in Docker:
-
-```bash
-docker compose up -d
-```
-
-The app will be available at [http://localhost:3100](http://localhost:3100).
-
-## Contributing
-
-We welcome contributions! While we're actively developing and refactoring certain areas, there are plenty of opportunities to contribute effectively.
-
-**🎯 Focus areas:** Timeline functionality, project management, performance, bug fixes, and UI improvements outside the preview panel.
-
-**⚠️ Avoid for now:** Preview panel enhancements (fonts, stickers, effects) and export functionality - we're refactoring these with a new binary rendering approach.
-
-See our [Contributing Guide](.github/CONTRIBUTING.md) for detailed setup instructions, development guidelines, and complete focus area guidance.
-
-**Quick start for contributors:**
-
-- Fork the repo and clone locally
-- Follow the setup instructions in CONTRIBUTING.md
-- Create a feature branch and submit a PR
-
-## License
-
-[MIT LICENSE](LICENSE)
+</div>
 
 ---
 
-![Star History Chart](https://api.star-history.com/svg?repos=opencut-app/opencut&type=Date)
+## 🚀 Overview
+
+ObenCut is a **fork of [OpenCut](https://github.com/OpenCut-app/OpenCut)** with enhanced AI capabilities powered by **ComfyUI**. This project aims to seamlessly integrate cutting-edge AI-generated content into a professional-grade video editing workflow.
+
+While OpenCut provides the foundation for privacy-first, open-source video editing, ObenCut extends its capabilities to include:
+
+- **AI Text-to-Video** generation
+- **AI Text-to-Image** generation  
+- **AI Image-to-Video** transitions
+- **AI Image-to-Image** effects
+- And more ComfyUI-powered features coming soon
+
+---
+
+## ⚡ Why ObenCut?
+
+### The Original Vision (from OpenCut)
+
+- **Privacy**: Your videos stay on your device
+- **Free features**: Most basic CapCut features are now paywalled
+- **Simple**: People want editors that are easy to use
+
+### ObenCut's AI Enhancement
+
+- **AI-Powered Content Creation**: Generate videos, images, and effects with AI
+- **ComfyUI Integration**: Leverage powerful AI workflows for content generation
+- **Seamless Workflow**: Use AI-generated content directly in your video timeline
+- **Still Privacy-First**: Your original footage and AI outputs remain local
+
+---
+
+## 🎯 Features
+
+### Core Video Editing
+
+- Timeline-based editing
+- Multi-track support (video, audio, text, stickers)
+- Real-time preview
+- No watermarks or subscriptions
+
+### AI Generation (via ComfyUI)
+
+- **Text-to-Video**: Generate video clips from text prompts
+- **Text-to-Image**: Create images from text descriptions
+- **Image-to-Video**: Animate images with AI
+- **Image-to-Image**: Apply AI styles and transformations
+- **Custom Workflows**: Use pre-built or create your own ComfyUI workflows
+
+---
+
+## 📦 Project Structure
+
+```
+obenbut/
+├── apps/web/              # Main Next.js web application
+│   ├── src/
+│   │   ├── app/          # Next.js app router pages
+│   │   ├── components/   # UI and editor components
+│   │   ├── constants/    # Application constants
+│   │   ├── core/         # Editor core (singleton)
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── lib/          # Utility and API logic
+│   │   │   ├── api/      # API routes and providers
+│   │   │   │   └── comfyui/     # ComfyUI integration
+│   │   │   └── ...
+│   │   ├── services/     # Background services
+│   │   ├── stores/       # State management (Zustand)
+│   │   └── types/        # TypeScript types
+├── docker/               # Docker configurations for ComfyUI
+├── public/               # Static assets
+│   └── workflows/        # Pre-built ComfyUI workflows
+├── packages/             # Shared packages
+│   ├── env/              # Environment variable definitions
+│   └── ui/               # Shared UI components
+└── tests/                # Test suite
+```
+
+---
+
+## 🛠️ Getting Started
+
+### Prerequisites
+
+- [Bun](https://bun.sh/docs/installation) (recommended) or Node.js 18+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (optional, for AI features)
+
+### Setup
+
+#### 1. Clone the Repository
+
+```bash
+git clone https://github.com/bowfeng/ObenCut.git
+cd ObenCut
+```
+
+#### 2. Install Dependencies
+
+```bash
+bun install
+```
+
+#### 3. Configure Environment
+
+```bash
+# Copy environment file
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Edit `apps/web/.env.local` with your configuration:
+
+```env
+# Database
+DATABASE_URL="postgresql://..."
+
+# Redis
+REDIS_URL="redis://localhost:6379"
+
+# ComfyUI (for AI features)
+COMFYUI_URL="http://localhost:8188"
+```
+
+#### 4. Start the Development Server
+
+```bash
+# Start database and Redis (optional, for full local setup)
+docker compose up -d db redis serverless-redis-http
+
+# Start the web app
+bun dev:web
+```
+
+The application will be available at [http://localhost:3000](http://localhost:3000).
+
+---
+
+## 🤖 ComfyUI Setup
+
+To use AI generation features, you need to run ComfyUI:
+
+```bash
+# Using CPU (slower, but simpler)
+docker compose -f docker-compose-cpu.yml up -d
+
+# Using GPU (faster, requires NVIDIA GPU)
+docker compose -f docker-compose-gpu.yml up -d
+```
+
+ComfyUI will be available at [http://localhost:8188](http://localhost:8188).
+
+### Available Workflows
+
+The repository includes pre-built ComfyUI workflows in `public/workflows/`:
+
+- `text2image.json` - Generate images from text
+- `text2video.json` - Generate video from text
+- `image2image.json` - Transform images with AI
+- `image2video.json` - Animate images to video
+
+---
+
+## 🎨 AI Generation Features
+
+### How to Use AI Generation in ObenCut
+
+1. Open the **Assets Panel** in the editor
+2. Select the **AI Generation** tab
+3. Choose a workflow (Text-to-Image, Text-to-Video, etc.)
+4. Enter your prompt and adjust settings
+5. Click **Generate**
+6. AI-generated content will be added to your assets library
+
+### Custom Workflows
+
+You can extend AI capabilities by:
+
+1. Creating your own ComfyUI workflow in the ComfyUI interface
+2. Exporting the workflow JSON
+3. Placing it in `public/workflows/`
+4. Registering it in the AI generation store
+
+---
+
+## 🚀 Coming Soon
+
+- [ ] More AI workflows for video editing
+- [ ] AI-based background removal
+- [ ] AI color grading
+- [ ] AI voice synthesis and lip-sync
+- [ ] Real-time AI effects during preview
+- [ ] Mobile app support
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! ObenCut is built on the foundation of [OpenCut](https://github.com/OpenCut-app/OpenCut), which has an active community.
+
+**Great areas to contribute:**
+
+- Adding new AI generation workflows
+- Improving ComfyUI integration
+- UI/UX improvements for AI features
+- Performance optimizations
+- Bug fixes
+
+See our [Contributing Guide](.github/CONTRIBUTING.md) for detailed setup instructions and development guidelines.
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+ObenCut is a fork of [OpenCut](https://github.com/OpenCut-app/OpenCut), which is also MIT licensed.
+
+---
+
+<div align="center">
+
+**Built with ❤️ using [OpenCut](https://github.com/OpenCut-app/OpenCut) + [ComfyUI](https://github.com/comfyanonymous/ComfyUI)**
+
+*Star history chart coming soon!*
+
+</div>
