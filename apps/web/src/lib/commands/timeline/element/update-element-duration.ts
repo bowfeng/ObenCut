@@ -1,5 +1,5 @@
 import { Command } from "@/lib/commands/base-command";
-import type { TimelineTrack } from "@/lib/timeline";
+import type { TimelineTrack } from "@/types/timeline";
 import { EditorCore } from "@/core";
 import { clampAnimationsToDuration } from "@/lib/animation";
 

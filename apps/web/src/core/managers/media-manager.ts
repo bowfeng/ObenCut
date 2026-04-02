@@ -1,10 +1,9 @@
 import type { EditorCore } from "@/core";
-import { toast } from "sonner";
-import type { MediaAsset } from "@/lib/media/types";
+import type { MediaAsset } from "@/types/assets";
 import { storageService } from "@/services/storage/service";
 import { generateUUID } from "@/utils/id";
 import { videoCache } from "@/services/video-cache/service";
-import { BatchCommand, RemoveMediaAssetCommand } from "@/lib/commands";
+import { hasMediaId } from "@/lib/timeline/element-utils";
 
 export class MediaManager {
 	private assets: MediaAsset[] = [];
@@ -18,61 +17,120 @@ export class MediaManager {
 		asset,
 	}: {
 		projectId: string;
-		asset: Omit<MediaAsset, "id">;
-	}): Promise<MediaAsset | null> {
+		asset: MediaAsset & { id?: string };
+	}): Promise<void> {
 		const newAsset: MediaAsset = {
 			...asset,
-			id: generateUUID(),
+			id: asset.id || generateUUID(),
 		};
+		// 如果是 Data URL 格式的 File，设置 url 和 thumbnailUrl
+		if (asset.file) {
+			const dataUrl = await this.readFileAsDataURL(asset.file);
+			if (dataUrl) {
+				newAsset.url = dataUrl;
+				newAsset.thumbnailUrl = dataUrl;
+			}
+		}
 
 		this.assets = [...this.assets, newAsset];
 		this.notify();
 
 		try {
 			await storageService.saveMediaAsset({ projectId, mediaAsset: newAsset });
-			this.editor.project.ratchetFpsForImportedMedia({
-				importedAssets: [newAsset],
-			});
-			return newAsset;
 		} catch (error) {
 			console.error("Failed to save media asset:", error);
 			this.assets = this.assets.filter((asset) => asset.id !== newAsset.id);
 			this.notify();
+		}
+	}
 
-			if (storageService.isQuotaExceededError({ error })) {
-				toast.error("Not enough browser storage", {
-					description: error instanceof Error ? error.message : undefined,
-				});
+	/**
+	 * 尝试从 File 对象读取 Data URL
+	 * 支持 data:image/png;base64,...格式的 File
+	 */
+	private async readFileAsDataURL(file: File): Promise<string | null> {
+		try {
+			const text = await file.text();
+			// 检查是否是 Data URL 格式
+			if (text.startsWith("data:")) {
+				return text;
 			}
-
+			return null;
+		} catch {
 			return null;
 		}
 	}
 
-	removeMediaAsset({ projectId, id }: { projectId: string; id: string }): void {
-		this.removeMediaAssets({ projectId, ids: [id] });
-	}
-
-	removeMediaAssets({
+	async removeMediaAsset({
 		projectId,
-		ids,
+		id,
 	}: {
 		projectId: string;
-		ids: string[];
-	}): void {
-		const uniqueIds = [...new Set(ids)];
-		if (uniqueIds.length === 0) {
-			return;
+		id: string;
+	}): Promise<void> {
+		const asset = this.assets.find((asset) => asset.id === id);
+
+		videoCache.clearVideo({ mediaId: id });
+
+		if (asset?.url) {
+			URL.revokeObjectURL(asset.url);
+			if (asset.thumbnailUrl) {
+				URL.revokeObjectURL(asset.thumbnailUrl);
+			}
 		}
 
-		const command =
-			uniqueIds.length === 1
-				? new RemoveMediaAssetCommand(projectId, uniqueIds[0])
-				: new BatchCommand(
-						uniqueIds.map((id) => new RemoveMediaAssetCommand(projectId, id)),
-					);
+		this.assets = this.assets.filter((asset) => asset.id !== id);
+		this.notify();
 
-		this.editor.command.execute({ command });
+		const tracks = this.editor.timeline.getTracks();
+		const elementsToRemove: Array<{ trackId: string; elementId: string }> = [];
+
+		for (const track of tracks) {
+			for (const element of track.elements) {
+				if (hasMediaId(element) && element.mediaId === id) {
+					elementsToRemove.push({ trackId: track.id, elementId: element.id });
+				}
+			}
+		}
+
+		if (elementsToRemove.length > 0) {
+			this.editor.timeline.deleteElements({ elements: elementsToRemove });
+		}
+
+		try {
+			await storageService.deleteMediaAsset({ projectId, id });
+		} catch (error) {
+			console.error("Failed to delete media asset:", error);
+		}
+	}
+
+	async updateMediaAsset({
+		projectId,
+		id,
+		name,
+	}: {
+		projectId: string;
+		id: string;
+		name: string;
+	}): Promise<void> {
+		// 更新本地状态
+		const assetIndex = this.assets.findIndex((asset) => asset.id === id);
+		if (assetIndex !== -1) {
+			const updatedAssets = [...this.assets];
+			updatedAssets[assetIndex] = {
+				...updatedAssets[assetIndex],
+				name,
+			};
+			this.assets = updatedAssets;
+			this.notify();
+		}
+
+		// 更新存储
+		try {
+			await storageService.updateMediaAsset({ projectId, id, name });
+		} catch (error) {
+			console.error("Failed to update media asset name:", error);
+		}
 	}
 
 	async loadProjectMedia({ projectId }: { projectId: string }): Promise<void> {
@@ -138,6 +196,13 @@ export class MediaManager {
 		return this.assets;
 	}
 
+	/**
+	 * 根据 ID 获取媒体资产
+	 */
+	getMediaById(id: string): MediaAsset | undefined {
+		return this.assets.find((asset) => asset.id === id);
+	}
+
 	setAssets({ assets }: { assets: MediaAsset[] }): void {
 		this.assets = assets;
 		this.notify();
@@ -153,8 +218,6 @@ export class MediaManager {
 	}
 
 	private notify(): void {
-		this.listeners.forEach((fn) => {
-			fn();
-		});
+		this.listeners.forEach((fn) => fn());
 	}
 }

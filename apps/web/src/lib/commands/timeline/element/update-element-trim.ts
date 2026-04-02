@@ -1,9 +1,8 @@
 import { Command } from "@/lib/commands/base-command";
-import type { TimelineTrack } from "@/lib/timeline";
+import type { TimelineTrack } from "@/types/timeline";
 import { EditorCore } from "@/core";
 import { clampAnimationsToDuration } from "@/lib/animation";
-import { isRetimableElement, rippleShiftElements } from "@/lib/timeline";
-import { enforceMainTrackStart } from "@/lib/timeline/placement";
+import { rippleShiftElements } from "@/lib/timeline";
 
 export class UpdateElementTrimCommand extends Command {
 	private savedState: TimelineTrack[] | null = null;
@@ -49,13 +48,7 @@ export class UpdateElementTrimCommand extends Command {
 			if (!targetElement) return track;
 
 			const nextDuration = this.duration ?? targetElement.duration;
-			const requestedStartTime = this.startTime ?? targetElement.startTime;
-			const nextStartTime = enforceMainTrackStart({
-				tracks: this.savedState ?? [],
-				targetTrackId: track.id,
-				requestedStartTime,
-				excludeElementId: this.elementId,
-			});
+			const nextStartTime = this.startTime ?? targetElement.startTime;
 
 			const oldEndTime = targetElement.startTime + targetElement.duration;
 			const newEndTime = nextStartTime + nextDuration;
@@ -67,9 +60,6 @@ export class UpdateElementTrimCommand extends Command {
 				trimEnd: this.trimEnd,
 				startTime: nextStartTime,
 				duration: nextDuration,
-				...(isRetimableElement(targetElement)
-					? { retime: targetElement.retime }
-					: {}),
 				animations: clampAnimationsToDuration({
 					animations: targetElement.animations,
 					duration: nextDuration,
@@ -78,9 +68,7 @@ export class UpdateElementTrimCommand extends Command {
 
 			if (this.rippleEnabled && Math.abs(shiftAmount) > 0) {
 				const shiftedOthers = rippleShiftElements({
-					elements: track.elements.filter(
-						(element) => element.id !== this.elementId,
-					),
+					elements: track.elements.filter((element) => element.id !== this.elementId),
 					afterTime: oldEndTime,
 					shiftAmount,
 				});
@@ -89,8 +77,7 @@ export class UpdateElementTrimCommand extends Command {
 					elements: track.elements.map((element) =>
 						element.id === this.elementId
 							? updatedElement
-							: (shiftedOthers.find((shifted) => shifted.id === element.id) ??
-								element),
+							: (shiftedOthers.find((shifted) => shifted.id === element.id) ?? element)
 					),
 				} as typeof track;
 			}
@@ -98,7 +85,7 @@ export class UpdateElementTrimCommand extends Command {
 			return {
 				...track,
 				elements: track.elements.map((element) =>
-					element.id === this.elementId ? updatedElement : element,
+					element.id === this.elementId ? updatedElement : element
 				),
 			} as typeof track;
 		});

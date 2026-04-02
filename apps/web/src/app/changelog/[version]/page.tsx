@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BasePage } from "@/app/base-page";
+import { allChangelogs } from "content-collections";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { getReleaseByVersion, getSortedReleases } from "../utils";
+import { getSortedReleases } from "../utils";
 import {
 	ReleaseArticle,
 	ReleaseMeta,
@@ -16,12 +17,12 @@ import { CopyMarkdownButton } from "../components/copy-markdown-button";
 type Props = { params: Promise<{ version: string }> };
 
 export async function generateStaticParams() {
-	return getSortedReleases().map((release) => ({ version: release.version }));
+	return allChangelogs.map((r) => ({ version: r.version }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	const { version } = await params;
-	const release = getReleaseByVersion({ version });
+	const release = allChangelogs.find((r) => r.version === version);
 	if (!release) return {};
 	return {
 		title: `${release.title} (${release.version}) - OpenCut Changelog`,
@@ -32,8 +33,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ReleaseDetailPage({ params }: Props) {
 	const { version } = await params;
 	const releases = getSortedReleases();
-	const index = releases.findIndex((entry) => entry.version === version);
+	const index = releases.findIndex((r) => r.version === version);
+
 	if (index === -1) notFound();
+
 	const release = releases[index];
 	const newer = index > 0 ? releases[index - 1] : null;
 	const older = index < releases.length - 1 ? releases[index + 1] : null;
@@ -49,20 +52,20 @@ export default async function ReleaseDetailPage({ params }: Props) {
 					All releases
 				</Link>
 
-				<ReleaseArticle variant="detail">
-					<div className="flex flex-col gap-4">
-						<div className="flex items-center justify-between">
-							<ReleaseMeta release={release} />
-							<CopyMarkdownButton
-								description={release.description}
-								changes={release.changes}
-							/>
-						</div>
-						<ReleaseTitle as="h1">{release.title}</ReleaseTitle>
-						{release.description && (
-							<ReleaseDescription>{release.description}</ReleaseDescription>
-						)}
+			<ReleaseArticle variant="detail">
+				<div className="flex flex-col gap-4">
+					<div className="flex items-center justify-between">
+						<ReleaseMeta release={release} />
+						<CopyMarkdownButton
+							description={release.description}
+							changes={release.changes}
+						/>
 					</div>
+					<ReleaseTitle as="h1">{release.title}</ReleaseTitle>
+					{release.description && (
+						<ReleaseDescription>{release.description}</ReleaseDescription>
+					)}
+				</div>
 					<ReleaseChanges release={release} />
 				</ReleaseArticle>
 

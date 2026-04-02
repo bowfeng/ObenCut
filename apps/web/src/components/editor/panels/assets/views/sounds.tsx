@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useSoundSearch } from "@/hooks/use-sound-search";
 import { useSoundsStore } from "@/stores/sounds-store";
-import type { SavedSound, SoundEffect } from "@/lib/sounds/types";
+import type { SavedSound, SoundEffect } from "@/types/sounds";
 import { cn } from "@/utils/ui";
 import {
 	FavouriteIcon,
@@ -42,6 +42,7 @@ export function SoundsView() {
 				<div className="px-3 pt-4 pb-0">
 					<TabsList>
 						<TabsTrigger value="sound-effects">Sound effects</TabsTrigger>
+						<TabsTrigger value="songs">Songs</TabsTrigger>
 						<TabsTrigger value="saved">Saved</TabsTrigger>
 					</TabsList>
 				</div>
@@ -57,6 +58,12 @@ export function SoundsView() {
 					className="mt-0 flex min-h-0 flex-1 flex-col p-5 pt-0"
 				>
 					<SavedSoundsView />
+				</TabsContent>
+				<TabsContent
+					value="songs"
+					className="mt-0 flex min-h-0 flex-1 flex-col p-5 pt-0"
+				>
+					<SongsView />
 				</TabsContent>
 			</Tabs>
 		</div>
@@ -476,6 +483,10 @@ function SavedSoundsView() {
 			</div>
 		</div>
 	);
+}
+
+function SongsView() {
+	return <div>Songs</div>;
 }
 
 interface AudioItemProps {

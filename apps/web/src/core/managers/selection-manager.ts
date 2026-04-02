@@ -1,6 +1,7 @@
 import type { EditorCore } from "@/core";
-import type { SelectedKeyframeRef } from "@/lib/animation/types";
-import type { ElementRef } from "@/lib/timeline/types";
+import type { SelectedKeyframeRef } from "@/types/animation";
+
+type ElementRef = { trackId: string; elementId: string };
 
 export class SelectionManager {
 	private selectedElements: ElementRef[] = [];
@@ -66,8 +67,6 @@ export class SelectionManager {
 	}
 
 	private notify(): void {
-		this.listeners.forEach((fn) => {
-			fn();
-		});
+		this.listeners.forEach((fn) => fn());
 	}
 }

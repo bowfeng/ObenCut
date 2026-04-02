@@ -1,5 +1,4 @@
 import type { ElementWithBounds } from "./element-bounds";
-import type { ElementRef } from "@/lib/timeline/types";
 
 function pointInRotatedRect({
 	px,
@@ -25,14 +24,14 @@ function pointInRotatedRect({
 	const dy = py - cy;
 	const localX = dx * cos - dy * sin;
 	const localY = dx * sin + dy * cos;
-	const halfW = Math.abs(width) / 2;
-	const halfH = Math.abs(height) / 2;
+	const halfW = width / 2;
+	const halfH = height / 2;
 	return (
 		localX >= -halfW && localX <= halfW && localY >= -halfH && localY <= halfH
 	);
 }
 
-export function getHitElements({
+export function hitTest({
 	canvasX,
 	canvasY,
 	elementsWithBounds,
@@ -40,9 +39,7 @@ export function getHitElements({
 	canvasX: number;
 	canvasY: number;
 	elementsWithBounds: ElementWithBounds[];
-}): ElementWithBounds[] {
-	const hits: ElementWithBounds[] = [];
-
+}): ElementWithBounds | null {
 	for (let i = elementsWithBounds.length - 1; i >= 0; i--) {
 		const { bounds } = elementsWithBounds[i];
 		if (
@@ -56,47 +53,8 @@ export function getHitElements({
 				rotation: bounds.rotation,
 			})
 		) {
-			hits.push(elementsWithBounds[i]);
+			return elementsWithBounds[i];
 		}
 	}
-
-	return hits;
-}
-
-export function hitTest({
-	canvasX,
-	canvasY,
-	elementsWithBounds,
-}: {
-	canvasX: number;
-	canvasY: number;
-	elementsWithBounds: ElementWithBounds[];
-}): ElementWithBounds | null {
-	return (
-		getHitElements({
-			canvasX,
-			canvasY,
-			elementsWithBounds,
-		})[0] ?? null
-	);
-}
-
-export function resolvePreferredHit({
-	hits,
-	preferredElements,
-}: {
-	hits: ElementWithBounds[];
-	preferredElements: ElementRef[];
-}): ElementWithBounds | null {
-	if (preferredElements.length === 0) return null;
-
-	return (
-		hits.find((hit) =>
-			preferredElements.some(
-				(preferredElement) =>
-					preferredElement.trackId === hit.trackId &&
-					preferredElement.elementId === hit.elementId,
-			),
-		) ?? null
-	);
+	return null;
 }

@@ -1,7 +1,6 @@
 export {
 	getChannelValueAtTime,
 	getNumberChannelValueAtTime,
-	getVectorChannelValueAtTime,
 	normalizeChannel,
 } from "./interpolation";
 
@@ -14,7 +13,6 @@ export {
 	setChannel,
 	splitAnimationsAtTime,
 	upsertElementKeyframe,
-	upsertPathKeyframe,
 } from "./keyframes";
 
 export {
@@ -23,6 +21,7 @@ export {
 	resolveNumberAtTime,
 	resolveOpacityAtTime,
 	resolveTransformAtTime,
+	resolveVolumeAtTime,
 } from "./resolve";
 
 export {
@@ -32,9 +31,6 @@ export {
 	getElementBaseValueForProperty,
 	isAnimationPropertyPath,
 	supportsAnimationProperty,
-	type AnimationPropertyDefinition,
-	type NumericSpec,
-	type NumericRange,
 	withElementBaseValueForProperty,
 } from "./property-registry";
 
@@ -43,29 +39,3 @@ export {
 	getKeyframeAtTime,
 	hasKeyframesForPath,
 } from "./keyframe-query";
-
-export {
-	buildGraphicParamPath,
-	isGraphicParamPath,
-	parseGraphicParamPath,
-	resolveGraphicParamsAtTime,
-} from "./graphic-param-channel";
-
-export {
-	isAnimationPath,
-	resolveAnimationTarget,
-	getParamValueKind,
-	getParamDefaultInterpolation,
-	type AnimationPathDescriptor,
-} from "./target-resolver";
-
-export {
-	getGroupKeyframesAtTime,
-	hasGroupKeyframeAtTime,
-	type GroupKeyframeRef,
-} from "./property-groups";
-
-export {
-	getVectorChannelForPath,
-	isVectorValue,
-} from "./vector-channel";

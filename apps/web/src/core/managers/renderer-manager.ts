@@ -1,16 +1,12 @@
 import type { EditorCore } from "@/core";
 import type { RootNode } from "@/services/renderer/nodes/root-node";
-import type { ExportOptions, ExportResult } from "@/lib/export";
+import type { ExportOptions, ExportResult } from "@/types/export";
 import { CanvasRenderer } from "@/services/renderer/canvas-renderer";
 import { SceneExporter } from "@/services/renderer/scene-exporter";
 import { buildScene } from "@/services/renderer/scene-builder";
 import { createTimelineAudioBuffer } from "@/lib/media/audio";
-import { formatTimeCode } from "opencut-wasm";
+import { formatTimeCode, getLastFrameTime } from "@/lib/time";
 import { downloadBlob } from "@/utils/browser";
-
-type SnapshotResult =
-	| { success: true; blob: Blob; filename: string }
-	| { success: false; error: string };
 
 export class RendererManager {
 	private renderTree: RootNode | null = null;
@@ -28,45 +24,6 @@ export class RendererManager {
 	}
 
 	async saveSnapshot(): Promise<{ success: boolean; error?: string }> {
-		const snapshot = await this.createSnapshot();
-		if (!snapshot.success) {
-			return snapshot;
-		}
-
-		downloadBlob({ blob: snapshot.blob, filename: snapshot.filename });
-		return { success: true };
-	}
-
-	async copySnapshot(): Promise<{ success: boolean; error?: string }> {
-		if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
-			return {
-				success: false,
-				error: "Clipboard image copy is not supported in this browser",
-			};
-		}
-
-		const snapshot = await this.createSnapshot();
-		if (!snapshot.success) {
-			return snapshot;
-		}
-
-		try {
-			await navigator.clipboard.write([
-				new ClipboardItem({
-					[snapshot.blob.type || "image/png"]: snapshot.blob,
-				}),
-			]);
-			return { success: true };
-		} catch (error) {
-			console.error("Copy snapshot failed:", error);
-			return {
-				success: false,
-				error: error instanceof Error ? error.message : "Unknown error",
-			};
-		}
-	}
-
-	private async createSnapshot(): Promise<SnapshotResult> {
 		try {
 			const renderTree = this.getRenderTree();
 			const activeProject = this.editor.project.getActive();
@@ -81,7 +38,9 @@ export class RendererManager {
 			}
 
 			const { canvasSize, fps } = activeProject.settings;
-			const renderTime = this.editor.playback.getCurrentTime();
+			const currentTime = this.editor.playback.getCurrentTime();
+			const lastFrameTime = getLastFrameTime({ duration, fps });
+			const renderTime = Math.min(currentTime, lastFrameTime);
 
 			const renderer = new CanvasRenderer({
 				width: canvasSize.width,
@@ -107,15 +66,19 @@ export class RendererManager {
 				return { success: false, error: "Failed to create image" };
 			}
 
-			const timecode = formatTimeCode({ timeInSeconds: renderTime, fps })!.replace(/:/g, "-");
-			const safeName =
-				activeProject.metadata.name.replace(/[<>:"/\\|?*]/g, "-").trim() ||
-				"snapshot";
+			const timecode = formatTimeCode({
+				timeInSeconds: renderTime,
+				fps,
+			}).replace(/:/g, "-");
+			const safeName = activeProject.metadata.name
+				.replace(/[<>:"/\\|?*]/g, "-")
+				.trim() || "snapshot";
 			const filename = `${safeName}-${timecode}.png`;
 
-			return { success: true, blob, filename };
+			downloadBlob({ blob, filename });
+			return { success: true };
 		} catch (error) {
-			console.error("Snapshot capture failed:", error);
+			console.error("Save snapshot failed:", error);
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : "Unknown error",
@@ -230,8 +193,6 @@ export class RendererManager {
 	}
 
 	private notify(): void {
-		this.listeners.forEach((fn) => {
-			fn();
-		});
+		this.listeners.forEach((fn) => fn());
 	}
 }

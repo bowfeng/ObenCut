@@ -32,12 +32,6 @@
 			"quoteStyle": "double"
 		}
 	},
-	"css": {
-		"parser": {
-			"cssModules": true,
-			"tailwindDirectives": true
-		}
-	},
 	"assist": {
 		"enabled": true,
 		"actions": {

@@ -1,4 +1,4 @@
-import { BASE_TIMELINE_PIXELS_PER_SECOND } from "@/lib/timeline/scale";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 
 export function getMouseTimeFromClientX({
 	clientX,
@@ -14,6 +14,6 @@ export function getMouseTimeFromClientX({
 	const mouseX = clientX - containerRect.left + scrollLeft;
 	return Math.max(
 		0,
-		mouseX / (BASE_TIMELINE_PIXELS_PER_SECOND * zoomLevel),
+		mouseX / (TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel),
 	);
 }

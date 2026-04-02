@@ -8,7 +8,7 @@ import {
 	Happy01Icon,
 	HeadphonesIcon,
 	MagicWand05Icon,
-	TextIcon,
+	AiContentGenerator02Icon ,
 	Settings01Icon,
 	SlidersHorizontalIcon,
 	ColorsIcon,
@@ -46,7 +46,7 @@ export const tabs = {
 		label: "Sounds",
 	},
 	text: {
-		icon: createHugeiconsIcon({ icon: TextIcon }),
+		icon: createHugeiconsIcon({ icon: AiContentGenerator02Icon }),
 		label: "Text",
 	},
 	stickers: {

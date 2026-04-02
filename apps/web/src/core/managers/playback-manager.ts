@@ -11,21 +11,13 @@ export class PlaybackManager {
 	private playbackTimer: number | null = null;
 	private lastUpdate = 0;
 
-	constructor(private editor: EditorCore) {
-		this.editor.timeline.subscribe(() => {
-			const maxTime = this.editor.timeline.getLastSeekableTime();
-			if (this.currentTime > maxTime && maxTime > 0) {
-				this.currentTime = maxTime;
-				this.notify();
-			}
-		});
-	}
+	constructor(private editor: EditorCore) {}
 
 	play(): void {
-		const maxTime = this.editor.timeline.getLastSeekableTime();
+		const duration = this.editor.timeline.getTotalDuration();
 
-		if (maxTime > 0) {
-			if (this.currentTime >= maxTime) {
+		if (duration > 0) {
+			if (this.currentTime >= duration) {
 				this.seek({ time: 0 });
 			}
 		}
@@ -50,8 +42,8 @@ export class PlaybackManager {
 	}
 
 	seek({ time }: { time: number }): void {
-		const maxTime = this.editor.timeline.getLastSeekableTime();
-		this.currentTime = Math.max(0, Math.min(maxTime, time));
+		const duration = this.editor.timeline.getTotalDuration();
+		this.currentTime = Math.max(0, Math.min(duration, time));
 		this.notify();
 
 		window.dispatchEvent(
@@ -125,9 +117,7 @@ export class PlaybackManager {
 	}
 
 	private notify(): void {
-		this.listeners.forEach((fn) => {
-			fn();
-		});
+		this.listeners.forEach((fn) => fn());
 	}
 
 	private startTimer(): void {
@@ -154,20 +144,21 @@ export class PlaybackManager {
 		this.lastUpdate = now;
 
 		const newTime = this.currentTime + delta;
-		const maxTime = this.editor.timeline.getLastSeekableTime();
+		const duration = this.editor.timeline.getTotalDuration();
 
-		if (maxTime > 0 && newTime >= maxTime) {
+		if (duration > 0 && newTime >= duration) {
 			this.pause();
-			this.currentTime = maxTime;
+			this.currentTime = duration;
 			this.notify();
 
 			window.dispatchEvent(
 				new CustomEvent("playback-seek", {
-					detail: { time: maxTime },
+					detail: { time: duration },
 				}),
 			);
 		} else {
 			this.currentTime = newTime;
+			this.notify();
 
 			window.dispatchEvent(
 				new CustomEvent("playback-update", {

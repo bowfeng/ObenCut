@@ -1,4 +1,4 @@
-import type { TimelineDragData } from "@/lib/timeline/drag";
+import type { TimelineDragData } from "@/types/drag";
 
 const MIME_TYPE = "application/x-timeline-drag";
 let lastDragData: TimelineDragData | null = null;

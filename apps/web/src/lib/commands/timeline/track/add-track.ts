@@ -1,11 +1,11 @@
 import { Command } from "@/lib/commands/base-command";
-import type { TrackType, TimelineTrack } from "@/lib/timeline";
+import type { TrackType, TimelineTrack } from "@/types/timeline";
 import { generateUUID } from "@/utils/id";
 import { EditorCore } from "@/core";
 import {
 	buildEmptyTrack,
 	getDefaultInsertIndexForTrack,
-} from "@/lib/timeline/placement";
+} from "@/lib/timeline/track-utils";
 
 export class AddTrackCommand extends Command {
 	private trackId: string;

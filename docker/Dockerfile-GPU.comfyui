@@ -1,0 +1,56 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    git \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /app/comfyui
+WORKDIR /app/comfyui
+
+# Install Python dependencies with GPU support (cu124 for better compatibility)
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install ComfyUI custom nodes
+WORKDIR /app/comfyui/custom_nodes
+RUN git clone https://github.com/Comfy-Org/ComfyUI-Manager.git && \
+    pip install --no-cache-dir -r /app/comfyui/custom_nodes/ComfyUI-Manager/requirements.txt
+RUN git clone https://github.com/kijai/ComfyUI-FramePackWrapper.git && \
+    pip install --no-cache-dir -r /app/comfyui/custom_nodes/ComfyUI-FramePackWrapper/requirements.txt
+RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git
+RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+RUN git clone https://github.com/cubiq/ComfyUI_essentials.git
+WORKDIR /app/comfyui
+
+# Create model directories (models will be downloaded at runtime)
+RUN mkdir -p /app/comfyui/models/diffusers/lllyasviel \
+    /app/comfyui/models/diffusion_models \
+    /app/comfyui/models/hunyuan_video \
+    /app/comfyui/models/sigclip
+
+# GPU configuration (Blackwell support)
+ENV CUDA_VISIBLE_DEVICES=0
+ENV TORCH_CUDA_ARCH_LIST="8.6 8.9 9.0 12.0"
+
+# Copy entrypoint script
+COPY docker/entrypoint-gpu.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create necessary directories
+RUN mkdir -p /app/comfyui/input /app/comfyui/output /app/comfyui/temp
+
+# Expose port
+EXPOSE 8188
+
+# Start ComfyUI with entrypoint and CORS enabled
+CMD ["/entrypoint.sh", "--enable-cors-header", "*", "--enable-manager"]
+
+#/app/comfyui/models/cli : https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/resolve/main/split_files/text_encoders/clip_l.safetensors
+#    https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/resolve/main/split_files/text_encoders/llava_llama3_fp8_scaled.safetensors

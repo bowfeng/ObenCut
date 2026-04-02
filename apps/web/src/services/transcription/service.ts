@@ -3,7 +3,7 @@ import type {
 	TranscriptionResult,
 	TranscriptionProgress,
 	TranscriptionModelId,
-} from "@/lib/transcription/types";
+} from "@/types/transcription";
 import {
 	DEFAULT_TRANSCRIPTION_MODEL,
 	TRANSCRIPTION_MODELS,

@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { EditorCore } from "@/core";
 import { useEditor } from "@/hooks/use-editor";
-import { useKeybindingsListener } from "@/hooks/use-keybindings";
-import { useKeybindingsStore } from "@/stores/keybindings-store";
+import {
+	useKeybindingsListener,
+	useKeybindingDisabler,
+} from "@/hooks/use-keybindings";
 import { useEditorActions } from "@/hooks/actions/use-editor-actions";
-import { loadFontAtlas } from "@/lib/fonts/google-fonts";
-import { initializeGpuRenderer } from "@/services/renderer/gpu-renderer";
+import { prefetchFontAtlas } from "@/lib/fonts/google-fonts";
 
 interface EditorProviderProps {
 	projectId: string;
@@ -17,30 +17,33 @@ interface EditorProviderProps {
 }
 
 export function EditorProvider({ projectId, children }: EditorProviderProps) {
-	const activeProject = useEditor((e) => e.project.getActiveOrNull());
+	const editor = useEditor();
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const { setLoadingProject } = useKeybindingsStore();
+	const { disableKeybindings, enableKeybindings } = useKeybindingDisabler();
+	const activeProject = editor.project.getActiveOrNull();
 
 	useEffect(() => {
-		setLoadingProject(isLoading);
-	}, [isLoading, setLoadingProject]);
+		if (isLoading) {
+			disableKeybindings();
+		} else {
+			enableKeybindings();
+		}
+	}, [isLoading, disableKeybindings, enableKeybindings]);
 
 	useEffect(() => {
 		let cancelled = false;
-		const editor = EditorCore.getInstance();
 
 		const loadProject = async () => {
 			try {
 				setIsLoading(true);
-				await initializeGpuRenderer();
 				await editor.project.loadProject({ id: projectId });
 
 				if (cancelled) return;
 
 				setIsLoading(false);
-				loadFontAtlas();
+				prefetchFontAtlas();
 			} catch (err) {
 				if (cancelled) return;
 
@@ -73,7 +76,7 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
 		return () => {
 			cancelled = true;
 		};
-	}, [projectId, router]);
+	}, [projectId, editor, router]);
 
 	if (error) {
 		return (

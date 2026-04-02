@@ -1,10 +1,14 @@
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { useEditor } from "@/hooks/use-editor";
-import type { ElementRef } from "@/lib/timeline/types";
+
+type ElementRef = { trackId: string; elementId: string };
 
 export function useElementSelection() {
 	const editor = useEditor();
-	const selectedElements = useEditor((e) => e.selection.getSelectedElements());
+	const selectedElements = useSyncExternalStore(
+		(listener) => editor.selection.subscribe(listener),
+		() => editor.selection.getSelectedElements(),
+	);
 
 	const isElementSelected = useCallback(
 		({ trackId, elementId }: ElementRef) =>
@@ -78,30 +82,6 @@ export function useElementSelection() {
 		[editor],
 	);
 
-
-	/**
-	 * Merges elements into the current selection, deduplicating by identity.
-	 * Used for additive box-select where the pre-drag selection is preserved.
-	 */
-	const mergeElementsIntoSelection = useCallback(
-		({ elements }: { elements: ElementRef[] }) => {
-			const merged = [
-				...selectedElements.filter(
-					(selectedElement) =>
-						!elements.some(
-							(element) =>
-								element.trackId === selectedElement.trackId &&
-								element.elementId === selectedElement.elementId,
-						),
-				),
-				...elements,
-			];
-			editor.selection.setSelectedElements({ elements: merged });
-		},
-		[selectedElements, editor],
-	);
-
-
 	/**
 	 * Handles click interaction on an element.
 	 * - Regular click: select only this element
@@ -127,7 +107,6 @@ export function useElementSelection() {
 		isElementSelected,
 		selectElement,
 		setElementSelection,
-		mergeElementsIntoSelection,
 		addElementToSelection,
 		removeElementFromSelection,
 		toggleElementSelection,

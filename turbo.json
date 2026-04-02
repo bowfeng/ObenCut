@@ -1,11 +1,8 @@
 {
 	"$schema": "https://turborepo.com/schema.json",
 	"tasks": {
-		"//#build:wasm": {
-			"outputs": ["rust/wasm/pkg/**"]
-		},
 		"build": {
-			"dependsOn": ["//#build:wasm", "^build"],
+			"dependsOn": ["^build"],
 			"outputs": [".next/**", "!.next/cache/**"],
 			"env": [
 				"NODE_ENV",
@@ -30,13 +27,6 @@
 		},
 		"dev": {
 			"persistent": true,
-			"cache": false
-		},
-		"preview": {
-			"persistent": true,
-			"cache": false
-		},
-		"deploy": {
 			"cache": false
 		},
 		"lint": {

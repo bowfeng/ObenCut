@@ -1,4 +1,4 @@
-import type { TimelineElement, TimelineTrack } from "@/lib/timeline";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 
 export function updateElementInTracks({
 	tracks,

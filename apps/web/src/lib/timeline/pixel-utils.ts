@@ -1,4 +1,4 @@
-import { BASE_TIMELINE_PIXELS_PER_SECOND } from "@/lib/timeline/scale";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 
 export const TIMELINE_INDICATOR_LINE_WIDTH_PX = 2;
 
@@ -31,7 +31,7 @@ export function getTimelinePixelsPerSecond({
 }: {
 	zoomLevel: number;
 }): number {
-	return BASE_TIMELINE_PIXELS_PER_SECOND * zoomLevel;
+	return TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 }
 
 export function timelineTimeToPixels({

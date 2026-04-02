@@ -1,33 +1,33 @@
-import { DEFAULT_NEW_ELEMENT_DURATION_SECONDS } from "@/lib/timeline/creation";
+import { DEFAULT_TEXT_ELEMENT } from "@/constants/text-constants";
 import {
-	MASKABLE_ELEMENT_TYPES,
-	RETIMABLE_ELEMENT_TYPES,
-	VISUAL_ELEMENT_TYPES,
-	type CreateEffectElement,
-	type CreateGraphicElement,
-	type CreateTimelineElement,
-	type CreateVideoElement,
-	type CreateImageElement,
-	type CreateStickerElement,
-	type CreateUploadAudioElement,
-	type CreateLibraryAudioElement,
-	type TextBackground,
-	type TextElement,
-	type TimelineElement,
-	type TimelineTrack,
-	type AudioElement,
-	type VideoElement,
-	type ImageElement,
-	type MaskableElement,
-	type RetimableElement,
-	type VisualElement,
-	type UploadAudioElement,
-} from "@/lib/timeline";
-import { DEFAULTS } from "@/lib/timeline/defaults";
-import type { MediaType } from "@/lib/media/types";
+	DEFAULT_BLEND_MODE,
+	DEFAULT_OPACITY,
+	DEFAULT_TRANSFORM,
+	TIMELINE_CONSTANTS,
+} from "@/constants/timeline-constants";
+import type {
+	CreateEffectElement,
+	CreateTimelineElement,
+	CreateVideoElement,
+	CreateImageElement,
+	CreateStickerElement,
+	CreateTextElement,
+	CreateUploadAudioElement,
+	CreateLibraryAudioElement,
+	CreatePromptElement,
+	TextBackground,
+	TextElement,
+	TimelineElement,
+	TimelineTrack,
+	AudioElement,
+	VideoElement,
+	ImageElement,
+	VisualElement,
+	PromptElement,
+	UploadAudioElement,
+} from "@/types/timeline";
+import type { MediaType } from "@/types/assets";
 import { buildDefaultEffectInstance } from "@/lib/effects";
-import { buildDefaultGraphicInstance } from "@/lib/graphics";
-import type { ParamValues } from "@/lib/params";
 import { capitalizeFirstLetter } from "@/utils/string";
 
 export function canElementHaveAudio(
@@ -39,33 +39,18 @@ export function canElementHaveAudio(
 export function isVisualElement(
 	element: TimelineElement,
 ): element is VisualElement {
-	return (VISUAL_ELEMENT_TYPES as readonly string[]).includes(element.type);
-}
-
-export function isMaskableElement(
-	element: TimelineElement,
-): element is MaskableElement {
-	return (MASKABLE_ELEMENT_TYPES as readonly string[]).includes(element.type);
-}
-
-export function isRetimableElement(
-	element: TimelineElement,
-): element is RetimableElement {
-	return (RETIMABLE_ELEMENT_TYPES as readonly string[]).includes(element.type);
+	return (
+		element.type === "video" ||
+		element.type === "image" ||
+		element.type === "text" ||
+		element.type === "sticker"
+	);
 }
 
 export function canElementBeHidden(
 	element: TimelineElement,
 ): element is VisualElement {
 	return isVisualElement(element);
-}
-
-export function hasElementEffects({
-	element,
-}: {
-	element: TimelineElement;
-}): boolean {
-	return isVisualElement(element) && (element.effects?.length ?? 0) > 0;
 }
 
 export function hasMediaId(
@@ -82,15 +67,83 @@ export function requiresMediaId({
 	return (
 		element.type === "video" ||
 		element.type === "image" ||
-		(element.type === "audio" && element.sourceType === "upload")
+ 		(element.type === "audio" && element.sourceType === "upload")
 	);
+}
+
+export function checkElementOverlaps({
+	elements,
+}: {
+	elements: TimelineElement[];
+}): boolean {
+	const sortedElements = [...elements].sort(
+		(a, b) => a.startTime - b.startTime,
+	);
+
+	for (let i = 0; i < sortedElements.length - 1; i++) {
+		const current = sortedElements[i];
+		const next = sortedElements[i + 1];
+
+		const currentEnd = current.startTime + current.duration;
+
+		if (currentEnd > next.startTime) return true;
+	}
+
+	return false;
+}
+
+export function resolveElementOverlaps({
+	elements,
+}: {
+	elements: TimelineElement[];
+}): TimelineElement[] {
+	const sortedElements = [...elements].sort(
+		(a, b) => a.startTime - b.startTime,
+	);
+	const resolvedElements: TimelineElement[] = [];
+
+	for (let i = 0; i < sortedElements.length; i++) {
+		const current = { ...sortedElements[i] };
+
+		if (resolvedElements.length > 0) {
+			const previous = resolvedElements[resolvedElements.length - 1];
+			const previousEnd = previous.startTime + previous.duration;
+
+			if (current.startTime < previousEnd) {
+				current.startTime = previousEnd;
+			}
+		}
+
+		resolvedElements.push(current);
+	}
+
+	return resolvedElements;
+}
+
+export function wouldElementOverlap({
+	elements,
+	startTime,
+	endTime,
+	excludeElementId,
+}: {
+	elements: TimelineElement[];
+	startTime: number;
+	endTime: number;
+	excludeElementId?: string;
+}): boolean {
+	return elements.some((element) => {
+		if (excludeElementId && element.id === excludeElementId) return false;
+		const elementEnd = element.startTime + element.duration;
+		return startTime < elementEnd && endTime > element.startTime;
+	});
 }
 
 function buildTextBackground(
 	raw: Partial<TextBackground> | undefined,
 ): TextBackground {
-	const color = raw?.color ?? DEFAULTS.text.element.background.color;
-	const enabled = raw?.enabled ?? color !== "transparent";
+	const color = raw?.color ?? DEFAULT_TEXT_ELEMENT.background.color;
+	const enabled =
+		typeof raw?.enabled === "boolean" ? raw.enabled : color !== "transparent";
 	return {
 		enabled,
 		color,
@@ -113,25 +166,28 @@ export function buildTextElement({
 
 	return {
 		type: "text",
-		name: t.name ?? DEFAULTS.text.element.name,
-		content: t.content ?? DEFAULTS.text.element.content,
-		duration: t.duration ?? DEFAULT_NEW_ELEMENT_DURATION_SECONDS,
+		name: t.name ?? DEFAULT_TEXT_ELEMENT.name,
+		content: t.content ?? DEFAULT_TEXT_ELEMENT.content,
+		duration: t.duration ?? TIMELINE_CONSTANTS.DEFAULT_ELEMENT_DURATION,
 		startTime,
 		trimStart: 0,
 		trimEnd: 0,
-		fontSize: t.fontSize ?? DEFAULTS.text.element.fontSize,
-		fontFamily: t.fontFamily ?? DEFAULTS.text.element.fontFamily,
-		color: t.color ?? DEFAULTS.text.element.color,
+		fontSize:
+			typeof t.fontSize === "number"
+				? t.fontSize
+				: DEFAULT_TEXT_ELEMENT.fontSize,
+		fontFamily: t.fontFamily ?? DEFAULT_TEXT_ELEMENT.fontFamily,
+		color: t.color ?? DEFAULT_TEXT_ELEMENT.color,
 		background: buildTextBackground(t.background),
-		textAlign: t.textAlign ?? DEFAULTS.text.element.textAlign,
-		fontWeight: t.fontWeight ?? DEFAULTS.text.element.fontWeight,
-		fontStyle: t.fontStyle ?? DEFAULTS.text.element.fontStyle,
-		textDecoration: t.textDecoration ?? DEFAULTS.text.element.textDecoration,
-		letterSpacing: t.letterSpacing ?? DEFAULTS.text.element.letterSpacing,
-		lineHeight: t.lineHeight ?? DEFAULTS.text.element.lineHeight,
-		transform: t.transform ?? DEFAULTS.text.element.transform,
-		opacity: t.opacity ?? DEFAULTS.text.element.opacity,
-		blendMode: t.blendMode ?? DEFAULTS.element.blendMode,
+		textAlign: t.textAlign ?? DEFAULT_TEXT_ELEMENT.textAlign,
+		fontWeight: t.fontWeight ?? DEFAULT_TEXT_ELEMENT.fontWeight,
+		fontStyle: t.fontStyle ?? DEFAULT_TEXT_ELEMENT.fontStyle,
+		textDecoration: t.textDecoration ?? DEFAULT_TEXT_ELEMENT.textDecoration,
+		letterSpacing: t.letterSpacing ?? DEFAULT_TEXT_ELEMENT.letterSpacing,
+		lineHeight: t.lineHeight ?? DEFAULT_TEXT_ELEMENT.lineHeight,
+		transform: t.transform ?? DEFAULT_TEXT_ELEMENT.transform,
+		opacity: t.opacity ?? DEFAULT_TEXT_ELEMENT.opacity,
+		blendMode: t.blendMode ?? DEFAULT_BLEND_MODE,
 	};
 }
 
@@ -150,7 +206,7 @@ export function buildEffectElement({
 		name: capitalizeFirstLetter({ string: instance.type }),
 		effectType,
 		params: instance.params,
-		duration: duration ?? DEFAULT_NEW_ELEMENT_DURATION_SECONDS,
+		duration: duration ?? TIMELINE_CONSTANTS.DEFAULT_ELEMENT_DURATION,
 		startTime,
 		trimStart: 0,
 		trimEnd: 0,
@@ -161,14 +217,10 @@ export function buildStickerElement({
 	stickerId,
 	name,
 	startTime,
-	intrinsicWidth,
-	intrinsicHeight,
 }: {
 	stickerId: string;
 	name?: string;
 	startTime: number;
-	intrinsicWidth?: number;
-	intrinsicHeight?: number;
 }): CreateStickerElement {
 	const stickerNameFromId =
 		stickerId.split(":").slice(1).pop()?.replaceAll("-", " ") ?? stickerId;
@@ -176,52 +228,17 @@ export function buildStickerElement({
 		type: "sticker",
 		name: name ?? stickerNameFromId,
 		stickerId,
-		intrinsicWidth,
-		intrinsicHeight,
-		duration: DEFAULT_NEW_ELEMENT_DURATION_SECONDS,
+		duration: TIMELINE_CONSTANTS.DEFAULT_ELEMENT_DURATION,
 		startTime,
 		trimStart: 0,
 		trimEnd: 0,
-		transform: {
-			...DEFAULTS.element.transform,
-			position: { ...DEFAULTS.element.transform.position },
-		},
-		opacity: DEFAULTS.element.opacity,
-		blendMode: DEFAULTS.element.blendMode,
+		transform: { ...DEFAULT_TRANSFORM },
+		opacity: DEFAULT_OPACITY,
+		blendMode: DEFAULT_BLEND_MODE,
 	};
 }
 
-export function buildGraphicElement({
-	definitionId,
-	name,
-	startTime,
-	params,
-}: {
-	definitionId: string;
-	name?: string;
-	startTime: number;
-	params?: Partial<ParamValues>;
-}): CreateGraphicElement {
-	const instance = buildDefaultGraphicInstance({ definitionId });
-	return {
-		type: "graphic",
-		name: name ?? capitalizeFirstLetter({ string: instance.definitionId }),
-		definitionId: instance.definitionId,
-		params: { ...instance.params, ...(params ?? {}) } as ParamValues,
-		duration: DEFAULT_NEW_ELEMENT_DURATION_SECONDS,
-		startTime,
-		trimStart: 0,
-		trimEnd: 0,
-		transform: {
-			...DEFAULTS.element.transform,
-			position: { ...DEFAULTS.element.transform.position },
-		},
-		opacity: DEFAULTS.element.opacity,
-		blendMode: DEFAULTS.element.blendMode,
-	};
-}
-
-function buildVideoElement({
+export function buildVideoElement({
 	mediaId,
 	name,
 	duration,
@@ -242,19 +259,14 @@ function buildVideoElement({
 		trimEnd: 0,
 		sourceDuration: duration,
 		muted: false,
-		isSourceAudioEnabled: true,
 		hidden: false,
-		transform: {
-			...DEFAULTS.element.transform,
-			position: { ...DEFAULTS.element.transform.position },
-		},
-		opacity: DEFAULTS.element.opacity,
-		blendMode: DEFAULTS.element.blendMode,
-		volume: DEFAULTS.element.volume,
+		transform: { ...DEFAULT_TRANSFORM },
+		opacity: DEFAULT_OPACITY,
+		blendMode: DEFAULT_BLEND_MODE,
 	};
 }
 
-function buildImageElement({
+export function buildImageElement({
 	mediaId,
 	name,
 	duration,
@@ -274,16 +286,13 @@ function buildImageElement({
 		trimStart: 0,
 		trimEnd: 0,
 		hidden: false,
-		transform: {
-			...DEFAULTS.element.transform,
-			position: { ...DEFAULTS.element.transform.position },
-		},
-		opacity: DEFAULTS.element.opacity,
-		blendMode: DEFAULTS.element.blendMode,
+		transform: { ...DEFAULT_TRANSFORM },
+		opacity: DEFAULT_OPACITY,
+		blendMode: DEFAULT_BLEND_MODE,
 	};
 }
 
-function buildUploadAudioElement({
+export function buildUploadAudioElement({
 	mediaId,
 	name,
 	duration,
@@ -306,13 +315,48 @@ function buildUploadAudioElement({
 		trimStart: 0,
 		trimEnd: 0,
 		sourceDuration: duration,
-		volume: DEFAULTS.element.volume,
+		volume: 1,
 		muted: false,
 	};
 	if (buffer) {
 		element.buffer = buffer;
 	}
 	return element;
+}
+
+export function buildPromptElement({
+	prompt,
+	name,
+	duration,
+	startTime,
+	generationType = "image",
+	width = 1920,
+	height = 1080,
+}: {
+	prompt: string;
+	name: string;
+	duration: number;
+	startTime: number;
+	generationType?: "image" | "video";
+	width?: number;
+	height?: number;
+}): CreatePromptElement {
+	return {
+		type: "prompt",
+		prompt,
+		name,
+		duration,
+		startTime,
+		trimStart: 0,
+		trimEnd: 0,
+		generationType,
+		resolution: {
+			width,
+			height,
+		},
+		blendMode: DEFAULT_BLEND_MODE,
+		hidden: false,
+	};
 }
 
 export function buildElementFromMedia({
@@ -369,7 +413,7 @@ export function buildLibraryAudioElement({
 		trimStart: 0,
 		trimEnd: 0,
 		sourceDuration: duration,
-		volume: DEFAULTS.element.volume,
+		volume: 1,
 		muted: false,
 	};
 	if (buffer) {
@@ -401,7 +445,7 @@ export function getElementsAtTime({
 	return result;
 }
 
-export function getElementFontFamilies({
+export function collectFontFamilies({
 	tracks,
 }: {
 	tracks: TimelineTrack[];

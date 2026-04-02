@@ -1,15 +1,15 @@
 import { EditorCore } from "@/core";
-import { resolveAnimationTarget, retimeElementKeyframe } from "@/lib/animation";
+import { retimeElementKeyframe, supportsAnimationProperty } from "@/lib/animation";
 import { Command } from "@/lib/commands/base-command";
 import { updateElementInTracks } from "@/lib/timeline";
-import type { AnimationPath } from "@/lib/animation/types";
-import type { TimelineTrack } from "@/lib/timeline";
+import type { AnimationPropertyPath } from "@/types/animation";
+import type { TimelineTrack } from "@/types/timeline";
 
 export class RetimeKeyframeCommand extends Command {
 	private savedState: TimelineTrack[] | null = null;
 	private readonly trackId: string;
 	private readonly elementId: string;
-	private readonly propertyPath: AnimationPath;
+	private readonly propertyPath: AnimationPropertyPath;
 	private readonly keyframeId: string;
 	private readonly nextTime: number;
 
@@ -22,7 +22,7 @@ export class RetimeKeyframeCommand extends Command {
 	}: {
 		trackId: string;
 		elementId: string;
-		propertyPath: AnimationPath;
+		propertyPath: AnimationPropertyPath;
 		keyframeId: string;
 		nextTime: number;
 	}) {
@@ -42,12 +42,14 @@ export class RetimeKeyframeCommand extends Command {
 			tracks: this.savedState,
 			trackId: this.trackId,
 			elementId: this.elementId,
+			elementPredicate: (element) =>
+				supportsAnimationProperty({
+					element,
+					propertyPath: this.propertyPath,
+				}),
 			update: (element) => {
-				if (!resolveAnimationTarget({ element, path: this.propertyPath })) {
-					return element;
-				}
-
 				const boundedTime = Math.max(0, Math.min(this.nextTime, element.duration));
+				if (!Number.isFinite(boundedTime)) return element;
 				return {
 					...element,
 					animations: retimeElementKeyframe({

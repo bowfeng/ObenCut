@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useKeybindingsStore } from "@/stores/keybindings-store";
-import { ACTIONS, type TActionWithOptionalArgs } from "@/lib/actions";
+import { ACTIONS, type TAction } from "@/lib/actions";
 import {
 	getPlatformAlternateKey,
 	getPlatformSpecialKey,
@@ -13,7 +13,7 @@ export interface KeyboardShortcut {
 	keys: string[];
 	description: string;
 	category: string;
-	action: TActionWithOptionalArgs;
+	action: TAction;
 	icon?: React.ReactNode;
 }
 
@@ -40,11 +40,9 @@ export function useKeyboardShortcutsHelp() {
 
 	const shortcuts = useMemo(() => {
 		const result: KeyboardShortcut[] = [];
-		const actionToKeys: Partial<Record<TActionWithOptionalArgs, string[]>> = {};
+		const actionToKeys: Record<string, string[]> = {};
 
-		for (const [key, action] of Object.entries(keybindings) as Array<
-			[string, TActionWithOptionalArgs | undefined]
-		>) {
+		for (const [key, action] of Object.entries(keybindings)) {
 			if (action) {
 				if (!actionToKeys[action]) {
 					actionToKeys[action] = [];
@@ -53,16 +51,16 @@ export function useKeyboardShortcutsHelp() {
 			}
 		}
 
-		for (const [action, keys] of Object.entries(actionToKeys) as Array<
-			[TActionWithOptionalArgs, string[]]
-		>) {
-			const actionDef = ACTIONS[action];
+		for (const [actionId, keys] of Object.entries(actionToKeys)) {
+			if (!isAction(actionId)) continue;
+
+			const actionDef = ACTIONS[actionId];
 			result.push({
-				id: action,
+				id: actionId,
 				keys,
 				description: actionDef.description,
 				category: actionDef.category,
-				action,
+				action: actionId,
 			});
 		}
 
@@ -77,4 +75,8 @@ export function useKeyboardShortcutsHelp() {
 	return {
 		shortcuts,
 	};
+}
+
+function isAction(id: string): id is TAction {
+	return id in ACTIONS;
 }

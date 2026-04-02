@@ -1,0 +1,35 @@
+services:
+  comfyui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile-CPU.comfyui
+    container_name: comfyui
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui_data:/ComfyUI/input
+      - comfyui_output:/ComfyUI/output
+      - comfyui_temp:/ComfyUI/temp
+      - comfyui_models:/ComfyUI/models
+    environment:
+      - COMFYUI_QUEUE_PROMPT=true
+      - USE_CPU=1
+      - PYTORCH_ENABLE_MPS_FALLBACK=1
+      - DISABLE_CUDA=1
+      - HuggingFace:__models__disable_cuda=True
+      - ENABLE_CORS_HEADER=true
+      - WEB_UI_EXTRA_URLS='{"headers":{"ComfyUser":"sc-comfy-ui-client"}}'
+      - WEBUI_URL='http://0.0.0.0:8188'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8188/system_stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  comfyui_data:
+  comfyui_output:
+  comfyui_temp:
+  comfyui_models:

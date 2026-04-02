@@ -1,5 +1,5 @@
 import type { EditorCore } from "@/core";
-import type { TimelineTrack, TScene } from "@/lib/timeline";
+import type { TimelineTrack, TScene } from "@/types/timeline";
 import { storageService } from "@/services/storage/service";
 import {
 	getMainScene,
@@ -12,7 +12,7 @@ import {
 	getFrameTime,
 	isBookmarkAtTime,
 } from "@/lib/timeline/bookmarks";
-import { ensureMainTrack } from "@/lib/timeline/placement";
+import { ensureMainTrack } from "@/lib/timeline/track-utils";
 import {
 	CreateSceneCommand,
 	DeleteSceneCommand,
@@ -302,9 +302,7 @@ export class ScenesManager {
 	}
 
 	private notify(): void {
-		this.listeners.forEach((fn) => {
-			fn();
-		});
+		this.listeners.forEach((fn) => fn());
 	}
 
 	updateSceneTracks({ tracks }: { tracks: TimelineTrack[] }): void {

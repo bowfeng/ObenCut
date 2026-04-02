@@ -7,16 +7,17 @@ import {
 } from "react";
 import { useEditor } from "@/hooks/use-editor";
 import { useKeyframeSelection } from "./use-keyframe-selection";
-import { snapTimeToFrame, getSnappedSeekTime } from "opencut-wasm";
+import { snapTimeToFrame, getSnappedSeekTime } from "@/lib/time";
 import { timelineTimeToSnappedPixels } from "@/lib/timeline";
-import { BASE_TIMELINE_PIXELS_PER_SECOND } from "@/lib/timeline/scale";
-import { TIMELINE_DRAG_THRESHOLD_PX } from "@/components/editor/panels/timeline/interaction";
+import {
+	DRAG_THRESHOLD_PX,
+	TIMELINE_CONSTANTS,
+} from "@/constants/timeline-constants";
 import { RetimeKeyframeCommand } from "@/lib/commands/timeline/element/keyframes/retime-keyframe";
 import { BatchCommand } from "@/lib/commands";
-import type { SelectedKeyframeRef } from "@/lib/animation/types";
-import type { TimelineElement } from "@/lib/timeline";
+import type { SelectedKeyframeRef } from "@/types/animation";
+import type { TimelineElement } from "@/types/timeline";
 import type { Command } from "@/lib/commands/base-command";
-import { registerCanceller } from "@/lib/cancel-interaction";
 export interface KeyframeDragState {
 	isDragging: boolean;
 	draggingKeyframeIds: Set<string>;
@@ -62,18 +63,11 @@ export function useKeyframeDrag({
 	const activeProject = editor.project.getActive();
 	const fps = activeProject.settings.fps;
 
-	const pixelsPerSecond = BASE_TIMELINE_PIXELS_PER_SECOND * zoomLevel;
+	const pixelsPerSecond = TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 
 	const endDrag = useCallback(() => {
 		setDragState(initialDragState);
 	}, []);
-
-	const cancelDrag = useCallback(() => {
-		pendingDragRef.current = null;
-		mouseDownXRef.current = null;
-		setIsPendingDrag(false);
-		endDrag();
-	}, [endDrag]);
 
 	const commitDrag = useCallback(
 		({
@@ -116,16 +110,10 @@ export function useKeyframeDrag({
 	useEffect(() => {
 		if (!dragState.isDragging && !isPendingDrag) return;
 
-		return registerCanceller({ fn: cancelDrag });
-	}, [dragState.isDragging, isPendingDrag, cancelDrag]);
-
-	useEffect(() => {
-		if (!dragState.isDragging && !isPendingDrag) return;
-
 		const handleMouseMove = ({ clientX }: MouseEvent) => {
 			if (isPendingDrag && pendingDragRef.current) {
 				const deltaX = Math.abs(clientX - pendingDragRef.current.startMouseX);
-				if (deltaX <= TIMELINE_DRAG_THRESHOLD_PX) return;
+				if (deltaX <= DRAG_THRESHOLD_PX) return;
 
 				const pending = pendingDragRef.current;
 				pendingDragRef.current = null;
@@ -246,14 +234,17 @@ export function useKeyframeDrag({
 
 			const wasDrag =
 				mouseDownXRef.current !== null &&
-				Math.abs(event.clientX - mouseDownXRef.current) >
-				TIMELINE_DRAG_THRESHOLD_PX;
+				Math.abs(event.clientX - mouseDownXRef.current) > DRAG_THRESHOLD_PX;
 			mouseDownXRef.current = null;
 
 			if (wasDrag) return;
 
 			const duration = editor.timeline.getTotalDuration();
-			const seekTime = getSnappedSeekTime({ rawTime: displayedStartTime + indicatorTime, duration, fps });
+			const seekTime = getSnappedSeekTime({
+				rawTime: displayedStartTime + indicatorTime,
+				duration,
+				fps,
+			});
 			editor.playback.seek({ time: seekTime });
 
 			if (event.shiftKey) {

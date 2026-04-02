@@ -1,10 +1,31 @@
-import { DefinitionRegistry } from "@/lib/registry";
-import type { EffectDefinition } from "@/lib/effects/types";
+import type { EffectDefinition } from "@/types/effects";
 
-export class EffectsRegistry extends DefinitionRegistry<string, EffectDefinition> {
-	constructor() {
-		super("effect");
-	}
+const effectDefinitions = new Map<string, EffectDefinition>();
+
+export function registerEffect({
+	definition,
+}: {
+	definition: EffectDefinition;
+}): void {
+	effectDefinitions.set(definition.type, definition);
 }
 
-export const effectsRegistry = new EffectsRegistry();
+export function hasEffect({ effectType }: { effectType: string }): boolean {
+	return effectDefinitions.has(effectType);
+}
+
+export function getEffect({
+	effectType,
+}: {
+	effectType: string;
+}): EffectDefinition {
+	const definition = effectDefinitions.get(effectType);
+	if (!definition) {
+		throw new Error(`Unknown effect type: ${effectType}`);
+	}
+	return definition;
+}
+
+export function getAllEffects(): EffectDefinition[] {
+	return Array.from(effectDefinitions.values());
+}

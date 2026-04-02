@@ -5,7 +5,7 @@ import { BasePage } from "@/app/base-page";
 import Prose from "@/components/ui/prose";
 import { Separator } from "@/components/ui/separator";
 import { getPosts, getSinglePost, processHtmlContent } from "@/lib/blog/query";
-import type { Author, Post } from "@/lib/blog/types";
+import type { Author, Post } from "@/types/blog";
 
 type PageProps = {
 	params: Promise<{ slug: string }>;

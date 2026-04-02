@@ -1,20 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import {
-	browseAll,
-	browseCategory,
-	searchAll,
-	searchStickers as searchStickersFromProviders,
-} from "@/lib/stickers";
-import type { StickerBrowseResult, StickerSearchResult } from "@/lib/stickers";
+import { EditorCore } from "@/core";
+import { searchStickers as searchStickersFromProviders } from "@/lib/stickers";
+import type { StickerSearchResult } from "@/lib/stickers";
+import { buildStickerElement } from "@/lib/timeline/element-utils";
 import { STICKER_CATEGORIES } from "@/constants/sticker-constants";
-import type { StickerCategory } from "@/lib/stickers/types";
+import type { StickerCategory } from "@/types/stickers";
 import { registerDefaultStickerProviders } from "@/lib/stickers/providers";
-import { stickersRegistry } from "@/lib/stickers/registry";
+import { hasProvider } from "@/lib/stickers/registry";
 import { parseStickerId } from "@/lib/stickers/sticker-id";
 
 const MAX_RECENT_STICKERS = 50;
-let browseRequestVersion = 0;
 
 function isValidStickerId(value: unknown): value is string {
 	if (typeof value !== "string") {
@@ -23,7 +19,7 @@ function isValidStickerId(value: unknown): value is string {
 
 	try {
 		const parsed = parseStickerId({ stickerId: value });
-		return stickersRegistry.has(parsed.providerId);
+		return hasProvider({ providerId: parsed.providerId });
 	} catch {
 		return false;
 	}
@@ -64,15 +60,20 @@ interface StickersStore {
 	selectedCategory: StickerCategory;
 	viewMode: ViewMode;
 	searchResults: StickerSearchResult | null;
-	browseContent: StickerBrowseResult | null;
 	recentStickers: string[];
 	isSearching: boolean;
-	isBrowsing: boolean;
+	addingSticker: string | null;
 
 	setSearchQuery: ({ query }: { query: string }) => void;
 	setSelectedCategory: ({ category }: { category: StickerCategory }) => void;
 	searchStickers: ({ query }: { query: string }) => Promise<void>;
-	browseStickers: () => Promise<void>;
+	addStickerToTimeline: ({
+		stickerId,
+		name,
+	}: {
+		stickerId: string;
+		name?: string;
+	}) => void;
 	addToRecentStickers: ({ stickerId }: { stickerId: string }) => void;
 	clearRecentStickers: () => void;
 }
@@ -85,34 +86,22 @@ export const useStickersStore = create<StickersStore>()(
 			viewMode: "browse",
 
 			searchResults: null,
-			browseContent: null,
 			recentStickers: [],
 
 			isSearching: false,
-			isBrowsing: false,
+			addingSticker: null,
 
 			setSearchQuery: ({ query }) => set({ searchQuery: query }),
 
-		setSelectedCategory: ({ category }) => {
-			set({
-				selectedCategory: category in STICKER_CATEGORIES ? category : "all",
-				browseContent: null,
-			});
-
-			const query = get().searchQuery.trim();
-			if (query) {
-				void get().searchStickers({ query });
-				return;
-			}
-
-			void get().browseStickers();
-		},
+			setSelectedCategory: ({ category }) =>
+				set({
+					selectedCategory: category in STICKER_CATEGORIES ? category : "all",
+					viewMode: "browse",
+				}),
 
 			searchStickers: async ({ query }: { query: string }) => {
-				const trimmedQuery = query.trim();
-				if (!trimmedQuery) {
+				if (!query.trim()) {
 					set({ searchResults: null, viewMode: "browse" });
-					await get().browseStickers();
 					return;
 				}
 
@@ -122,17 +111,12 @@ export const useStickersStore = create<StickersStore>()(
 
 				set({ isSearching: true, viewMode: "search" });
 				try {
-					if (selectedCategory === "all") {
-						const browseContent = await searchAll({ query: trimmedQuery });
-						set({ browseContent, searchResults: null });
-					} else {
-						const results = await searchStickersFromProviders({
-							query: trimmedQuery,
-							category: selectedCategory,
-							limit: 100,
-						});
-						set({ searchResults: results });
-					}
+					const results = await searchStickersFromProviders({
+						query,
+						category: selectedCategory,
+						limit: 100,
+					});
+					set({ searchResults: results });
 				} catch (error) {
 					console.error("Search failed:", error);
 					set({ searchResults: null });
@@ -141,70 +125,67 @@ export const useStickersStore = create<StickersStore>()(
 				}
 			},
 
-		browseStickers: async () => {
-			const version = ++browseRequestVersion;
-			const category = get().selectedCategory;
-			const selectedCategory =
-				category in STICKER_CATEGORIES ? category : "all";
+			addStickerToTimeline: ({
+				stickerId,
+				name,
+			}: {
+				stickerId: string;
+				name?: string;
+			}) => {
+				set({ addingSticker: stickerId });
+				try {
+					const editor = EditorCore.getInstance();
+					const currentTime = editor.playback.getCurrentTime();
+					const tracks = editor.timeline.getTracks();
 
-			set({ isBrowsing: true, viewMode: "browse" });
-			try {
-				const browseContent =
-					selectedCategory === "all"
-						? await browseAll({
-								recentStickers: get().recentStickers,
-							})
-						: await browseCategory({
-								category: selectedCategory,
-							});
+					const stickerTrack = tracks.find((t) => t.type === "sticker");
+					let trackId: string;
 
-				if (version !== browseRequestVersion) return;
-				set({ browseContent });
-			} catch (error) {
-				if (version !== browseRequestVersion) return;
-				console.error("Browse failed:", error);
-				set({ browseContent: null });
-			} finally {
-				if (version === browseRequestVersion) {
-					set({ isBrowsing: false });
-				}
-			}
-		},
+					if (stickerTrack) {
+						trackId = stickerTrack.id;
+					} else {
+						trackId = editor.timeline.addTrack({ type: "sticker" });
+					}
 
-		addToRecentStickers: ({ stickerId }: { stickerId: string }) => {
-			const sanitizedStickerIds = sanitizeRecentStickers({
-				recentStickers: [stickerId],
-			});
-			if (sanitizedStickerIds.length === 0) {
-				return;
-			}
+					const element = buildStickerElement({
+						stickerId,
+						name,
+						startTime: currentTime,
+					});
+					editor.timeline.insertElement({
+						placement: { mode: "explicit", trackId },
+						element,
+					});
 
-			set((state) => {
-				const recent = [
-					sanitizedStickerIds[0],
-					...state.recentStickers.filter((s) => s !== sanitizedStickerIds[0]),
-				];
-				return {
-					recentStickers: recent.slice(0, MAX_RECENT_STICKERS),
-				};
-			});
-
-			if (get().viewMode === "browse" && get().selectedCategory === "all") {
-				void get().browseStickers();
-			}
-		},
-
-			clearRecentStickers: () => {
-				set({ recentStickers: [] });
-
-				if (get().viewMode === "browse" && get().selectedCategory === "all") {
-					void get().browseStickers();
+					get().addToRecentStickers({ stickerId });
+				} finally {
+					set({ addingSticker: null });
 				}
 			},
+
+			addToRecentStickers: ({ stickerId }: { stickerId: string }) => {
+				const sanitizedStickerIds = sanitizeRecentStickers({
+					recentStickers: [stickerId],
+				});
+				if (sanitizedStickerIds.length === 0) {
+					return;
+				}
+
+				set((state) => {
+					const recent = [
+						sanitizedStickerIds[0],
+						...state.recentStickers.filter((s) => s !== sanitizedStickerIds[0]),
+					];
+					return {
+						recentStickers: recent.slice(0, MAX_RECENT_STICKERS),
+					};
+				});
+			},
+
+			clearRecentStickers: () => set({ recentStickers: [] }),
 		}),
 		{
 			name: "stickers-settings",
-			version: 1,
 			migrate: (persistedState) => {
 				if (
 					typeof persistedState === "object" &&

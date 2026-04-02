@@ -1,10 +1,10 @@
-import type { MediaType } from "@/lib/media/types";
+import type { MediaType } from "@/types/assets";
 import type {
 	TProject,
 	TProjectMetadata,
 	TTimelineViewState,
-} from "@/lib/project/types";
-import type { TScene } from "@/lib/timeline";
+} from "@/types/project";
+import type { TScene } from "@/types/timeline";
 
 export interface StorageAdapter<T> {
 	get(key: string): Promise<T | null>;
@@ -24,7 +24,6 @@ export interface MediaAssetData {
 	height?: number;
 	duration?: number;
 	fps?: number;
-	hasAudio?: boolean;
 	ephemeral?: boolean;
 	thumbnailUrl?: string;
 }

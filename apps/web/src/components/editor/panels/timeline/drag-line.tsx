@@ -1,6 +1,5 @@
-import { getDropLineY } from "./drop-target";
-import type { TimelineTrack, DropTarget } from "@/lib/timeline";
-import { TIMELINE_LAYERS } from "./layers";
+import { getDropLineY } from "@/lib/timeline/drop-utils";
+import type { TimelineTrack, DropTarget } from "@/types/timeline";
 
 interface DragLineProps {
 	dropTarget: DropTarget | null;
@@ -23,7 +22,7 @@ export function DragLine({
 	return (
 		<div
 			className="bg-primary pointer-events-none absolute right-0 left-0 h-0.5"
-			style={{ top: `${lineTop}px`, zIndex: TIMELINE_LAYERS.dragLine }}
+			style={{ top: `${lineTop}px` }}
 		/>
 	);
 }

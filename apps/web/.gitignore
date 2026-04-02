@@ -8,7 +8,3 @@
 .next/
 
 .font-cache/
-
-next-env.d.ts
-
-*.tsbuildinfo

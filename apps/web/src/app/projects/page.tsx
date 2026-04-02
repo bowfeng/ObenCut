@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import type { KeyboardEvent, MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { EditorCore } from "@/core";
 import { MigrationDialog } from "@/components/editor/dialogs/migration-dialog";
-import { StoragePersistenceDialog } from "@/components/editor/dialogs/storage-persistence-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,8 +18,8 @@ import type {
 	TProjectMetadata,
 	TProjectSortKey,
 	TProjectSortOption,
-} from "@/lib/project/types";
-import { formatTimeCode } from "opencut-wasm";
+} from "@/types/project";
+import { formatTimeCode } from "@/lib/time";
 import { formatDate } from "@/utils/date";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -46,7 +44,7 @@ import {
 	ArrowDown02Icon,
 	InformationCircleIcon,
 } from "@hugeicons/core-free-icons";
-import { OcVideoIcon } from "@/components/icons";
+import { OcVideoIcon } from "@opencut/ui/icons";
 import { Label } from "@/components/ui/label";
 import {
 	ContextMenu,
@@ -77,7 +75,7 @@ const formatProjectDuration = ({
 	}
 
 	const format = duration >= 3600 ? "HH:MM:SS" : "MM:SS";
-	return formatTimeCode({ timeInSeconds: duration, format }) ?? "";
+	return formatTimeCode({ timeInSeconds: duration, format });
 };
 
 const VIEW_MODE_OPTIONS = [
@@ -88,13 +86,6 @@ const VIEW_MODE_OPTIONS = [
 export default function ProjectsPage() {
 	const { searchQuery, sortKey, sortOrder, viewMode } = useProjectsStore();
 	const editor = useEditor();
-	const sortOption: TProjectSortOption = `${sortKey}-${sortOrder}`;
-
-	const isLoading = useEditor((e) => e.project.getIsLoading());
-	const isInitialized = useEditor((e) => e.project.getIsInitialized());
-	const projectsToDisplay = useEditor((e) =>
-		e.project.getFilteredAndSortedProjects({ searchQuery, sortOption }),
-	);
 
 	useEffect(() => {
 		if (!editor.project.getIsInitialized()) {
@@ -102,10 +93,18 @@ export default function ProjectsPage() {
 		}
 	}, [editor.project]);
 
+	const sortOption: TProjectSortOption = `${sortKey}-${sortOrder}`;
+	const projectsToDisplay = editor.project.getFilteredAndSortedProjects({
+		searchQuery,
+		sortOption,
+	});
+
+	const isLoading = editor.project.getIsLoading();
+	const isInitialized = editor.project.getIsInitialized();
+
 	return (
 		<div className="bg-background min-h-screen">
 			<MigrationDialog />
-			<StoragePersistenceDialog />
 			<ProjectsHeader />
 			<ProjectsToolbar projectIds={projectsToDisplay.map((p) => p.id)} />
 			<main className="mx-auto px-4 pt-2 pb-6 flex flex-col gap-4">
@@ -360,7 +359,7 @@ async function deleteProjects({
 	editor,
 	ids,
 }: {
-	editor: EditorCore;
+	editor: ReturnType<typeof useEditor>;
 	ids: string[];
 }) {
 	await editor.project.deleteProjects({ ids });
@@ -370,7 +369,7 @@ async function duplicateProjects({
 	editor,
 	ids,
 }: {
-	editor: EditorCore;
+	editor: ReturnType<typeof useEditor>;
 	ids: string[];
 }) {
 	await editor.project.duplicateProjects({ ids });
@@ -381,7 +380,7 @@ async function renameProject({
 	id,
 	name,
 }: {
-	editor: EditorCore;
+	editor: ReturnType<typeof useEditor>;
 	id: string;
 	name: string;
 }) {

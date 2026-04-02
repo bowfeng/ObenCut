@@ -1,5 +1,4 @@
 import { useEditor } from "@/hooks/use-editor";
-import { useElementSelection } from "@/hooks/timeline/element/use-element-selection";
 import {
 	TooltipProvider,
 	Tooltip,
@@ -7,6 +6,7 @@ import {
 	TooltipContent,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { SplitSquareHorizontal } from "lucide-react";
 import {
 	SplitButton,
 	SplitButtonLeft,
@@ -14,19 +14,10 @@ import {
 	SplitButtonSeparator,
 } from "@/components/ui/split-button";
 import { Slider } from "@/components/ui/slider";
-import {
-	TIMELINE_ZOOM_BUTTON_FACTOR,
-} from "./interaction";
-import { TIMELINE_ZOOM_MAX } from "@/lib/timeline/scale";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { sliderToZoom, zoomToSlider } from "@/lib/timeline/zoom-utils";
-import { ScenesView } from "@/components/editor/scenes-view";
-import { type TActionWithOptionalArgs, invokeAction } from "@/lib/actions";
-import {
-	canToggleSourceAudio,
-	getSourceAudioActionLabel,
-	isSourceAudioSeparated,
-} from "@/lib/timeline/audio-separation";
-import { hasMediaId } from "@/lib/timeline";
+import { ScenesView } from "../../scenes-view";
+import { type TAction, invokeAction } from "@/lib/actions";
 import { cn } from "@/utils/ui";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,13 +33,9 @@ import {
 	Copy01Icon,
 	AlignLeftIcon,
 	AlignRightIcon,
-	Link02Icon,
 	Layers01Icon,
-	Chart03Icon,
-	Unlink02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { OcRippleIcon } from "@/components/icons";
 
 export function TimelineToolbar({
 	zoomLevel,
@@ -63,10 +50,10 @@ export function TimelineToolbar({
 		const newZoomLevel =
 			direction === "in"
 				? Math.min(
-						TIMELINE_ZOOM_MAX,
-						zoomLevel * TIMELINE_ZOOM_BUTTON_FACTOR,
+						TIMELINE_CONSTANTS.ZOOM_MAX,
+						zoomLevel * TIMELINE_CONSTANTS.ZOOM_BUTTON_FACTOR,
 					)
-				: Math.max(minZoom, zoomLevel / TIMELINE_ZOOM_BUTTON_FACTOR);
+				: Math.max(minZoom, zoomLevel / TIMELINE_CONSTANTS.ZOOM_BUTTON_FACTOR);
 		setZoomLevel({ zoom: newZoomLevel });
 	};
 
@@ -90,52 +77,14 @@ export function TimelineToolbar({
 
 function ToolbarLeftSection() {
 	const editor = useEditor();
-	const mediaAssets = useEditor((currentEditor) => currentEditor.media.getAssets());
-	const { selectedElements } = useElementSelection();
-	const isCurrentlyBookmarked = useEditor((e) =>
-		e.scenes.isBookmarked({ time: e.playback.getCurrentTime() }),
-	);
-	const selectedElement =
-		selectedElements.length === 1
-			? (editor.timeline.getElementsWithTracks({
-					elements: selectedElements,
-				})[0] ?? null)
-			: null;
-	const selectedMediaAsset = (() => {
-		if (!selectedElement) {
-			return null;
-		}
-
-		const { element } = selectedElement;
-		if (!hasMediaId(element)) {
-			return null;
-		}
-
-		return mediaAssets.find((asset) => asset.id === element.mediaId) ?? null;
-	})();
-	const canToggleSelectedSourceAudio =
-		!!selectedElement &&
-		canToggleSourceAudio({
-			element: selectedElement.element,
-			mediaAsset: selectedMediaAsset,
-		});
-	const sourceAudioLabel =
-		selectedElement?.element.type === "video"
-			? getSourceAudioActionLabel({
-					element: selectedElement.element,
-				})
-			: "Extract audio";
-	const isSelectedSourceAudioSeparated =
-		selectedElement?.element.type === "video" &&
-		isSourceAudioSeparated({
-			element: selectedElement.element,
-		});
+	const currentTime = editor.playback.getCurrentTime();
+	const isCurrentlyBookmarked = editor.scenes.isBookmarked({ time: currentTime });
 
 	const handleAction = ({
 		action,
 		event,
 	}: {
-		action: TActionWithOptionalArgs;
+		action: TAction;
 		event: React.MouseEvent;
 	}) => {
 		event.stopPropagation();
@@ -166,16 +115,10 @@ function ToolbarLeftSection() {
 				/>
 
 				<ToolbarButton
-			icon={
-					<HugeiconsIcon
-						icon={isSelectedSourceAudioSeparated ? Unlink02Icon : Link02Icon}
-					/>
-				}
-					tooltip={sourceAudioLabel}
-					disabled={!canToggleSelectedSourceAudio}
-					onClick={({ event }) =>
-						handleAction({ action: "toggle-source-audio", event })
-					}
+					icon={<SplitSquareHorizontal />}
+					tooltip="Separate audio (coming soon)"
+					disabled={true}
+					onClick={({ event: _event }) => {}}
 				/>
 
 				<ToolbarButton
@@ -206,19 +149,11 @@ function ToolbarLeftSection() {
 				<Tooltip>
 					<ToolbarButton
 						icon={<HugeiconsIcon icon={Bookmark02Icon} />}
-						isActive={isCurrentlyBookmarked}
-						tooltip={isCurrentlyBookmarked ? "Remove bookmark" : "Add bookmark"}
+				isActive={isCurrentlyBookmarked}
+					tooltip={isCurrentlyBookmarked ? "Remove bookmark" : "Add bookmark"}
 						onClick={({ event }) =>
 							handleAction({ action: "toggle-bookmark", event })
 						}
-					/>
-				</Tooltip>
-
-				<Tooltip>
-					<ToolbarButton
-						icon={<HugeiconsIcon icon={Chart03Icon} />}
-						tooltip="Open graph editor"
-						onClick={() => {}}
 					/>
 				</Tooltip>
 			</TooltipProvider>
@@ -272,7 +207,7 @@ function ToolbarRightSection({
 				/>
 
 				<ToolbarButton
-					icon={<OcRippleIcon size={24} className="scale-110" />}
+					icon={<HugeiconsIcon icon={Link04Icon} className="scale-110" />}
 					isActive={rippleEditingEnabled}
 					tooltip="Ripple editing"
 					onClick={() => toggleRippleEditing()}
@@ -330,7 +265,6 @@ function ToolbarButton({
 				<Button
 					variant={isActive ? "secondary" : "text"}
 					size="icon"
-					disabled={disabled}
 					onClick={(event) => onClick({ event })}
 					className={cn(
 						"rounded-sm",

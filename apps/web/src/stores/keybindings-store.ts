@@ -6,10 +6,10 @@ import type { TActionWithOptionalArgs } from "@/lib/actions";
 import { getDefaultShortcuts } from "@/lib/actions";
 import { isTypableDOMElement } from "@/utils/browser";
 import { isAppleDevice } from "@/utils/platform";
-import type { KeybindingConfig, ShortcutKey } from "@/lib/actions/keybinding";
+import type { KeybindingConfig, ShortcutKey } from "@/types/keybinding";
 import { runMigrations, CURRENT_VERSION } from "./keybindings/migrations";
 
-const defaultKeybindings: KeybindingConfig = getDefaultShortcuts();
+export const defaultKeybindings: KeybindingConfig = getDefaultShortcuts();
 
 export interface KeybindingConflict {
 	key: ShortcutKey;
@@ -20,9 +20,7 @@ export interface KeybindingConflict {
 interface KeybindingsState {
 	keybindings: KeybindingConfig;
 	isCustomized: boolean;
-	overlayDepth: number;
-	openOverlayIds: string[];
-	isLoadingProject: boolean;
+	keybindingsEnabled: boolean;
 	isRecording: boolean;
 
 	updateKeybinding: (key: ShortcutKey, action: TActionWithOptionalArgs) => void;
@@ -30,9 +28,8 @@ interface KeybindingsState {
 	resetToDefaults: () => void;
 	importKeybindings: (config: KeybindingConfig) => void;
 	exportKeybindings: () => KeybindingConfig;
-	openOverlay: (overlayId: string, source: string) => void;
-	closeOverlay: (overlayId: string, source: string) => void;
-	setLoadingProject: (loading: boolean) => void;
+	enableKeybindings: () => void;
+	disableKeybindings: () => void;
 	setIsRecording: (isRecording: boolean) => void;
 	validateKeybinding: (
 		key: ShortcutKey,
@@ -51,111 +48,8 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		(set, get) => ({
 			keybindings: { ...defaultKeybindings },
 			isCustomized: false,
-			overlayDepth: 0,
-			openOverlayIds: [],
-			isLoadingProject: false,
+			keybindingsEnabled: true,
 			isRecording: false,
-
-			openOverlay: (overlayId, source) =>
-				set((s) => {
-					const openOverlayIds = s.openOverlayIds.includes(overlayId)
-						? s.openOverlayIds
-						: [...s.openOverlayIds, overlayId];
-					const nextOverlayDepth = openOverlayIds.length;
-					// #region agent log
-					fetch(
-						"http://127.0.0.1:7245/ingest/669b22f8-172b-4e65-aa3f-1c702ede83f7",
-						{
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-								"X-Debug-Session-Id": "3997d9",
-							},
-							body: JSON.stringify({
-								sessionId: "3997d9",
-								runId: "initial",
-								hypothesisId: "H2",
-								location: "keybindings-store.ts:openOverlay",
-								message: "Overlay depth incremented",
-								data: {
-									source,
-									overlayId,
-									overlayDepth: s.overlayDepth,
-									nextOverlayDepth,
-									openOverlayIds,
-								},
-								timestamp: Date.now(),
-							}),
-						},
-					).catch(() => {});
-					// #endregion
-					return {
-						openOverlayIds,
-						overlayDepth: nextOverlayDepth,
-					};
-				}),
-			closeOverlay: (overlayId, source) =>
-				set((s) => {
-					const openOverlayIds = s.openOverlayIds.filter(
-						(id) => id !== overlayId,
-					);
-					const nextOverlayDepth = openOverlayIds.length;
-					// #region agent log
-					fetch(
-						"http://127.0.0.1:7245/ingest/669b22f8-172b-4e65-aa3f-1c702ede83f7",
-						{
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-								"X-Debug-Session-Id": "3997d9",
-							},
-							body: JSON.stringify({
-								sessionId: "3997d9",
-								runId: "initial",
-								hypothesisId: "H2",
-								location: "keybindings-store.ts:closeOverlay",
-								message: "Overlay depth decremented",
-								data: {
-									source,
-									overlayId,
-									overlayDepth: s.overlayDepth,
-									nextOverlayDepth,
-									openOverlayIds,
-								},
-								timestamp: Date.now(),
-							}),
-						},
-					).catch(() => {});
-					// #endregion
-					return {
-						openOverlayIds,
-						overlayDepth: nextOverlayDepth,
-					};
-				}),
-			setLoadingProject: (loading) => {
-				// #region agent log
-				fetch(
-					"http://127.0.0.1:7245/ingest/669b22f8-172b-4e65-aa3f-1c702ede83f7",
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							"X-Debug-Session-Id": "3997d9",
-						},
-						body: JSON.stringify({
-							sessionId: "3997d9",
-							runId: "initial",
-							hypothesisId: "H2",
-							location: "keybindings-store.ts:setLoadingProject",
-							message: "Loading gate updated",
-							data: { loading },
-							timestamp: Date.now(),
-						}),
-					},
-				).catch(() => {});
-				// #endregion
-				set({ isLoadingProject: loading });
-			},
 
 			updateKeybinding: (key: ShortcutKey, action: TActionWithOptionalArgs) => {
 				set((state) => {
@@ -188,9 +82,17 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 				});
 			},
 
-			importKeybindings: (config: KeybindingConfig) => {
-				for (const [key] of Object.entries(config)) {
-					if (typeof key !== "string" || key.length === 0) {
+			enableKeybindings: () => {
+				set({ keybindingsEnabled: true });
+			},
+
+			disableKeybindings: () => {
+				set({ keybindingsEnabled: false });
+			},
+
+		importKeybindings: (config: KeybindingConfig) => {
+			for (const [key] of Object.entries(config)) {
+				if (typeof key !== "string" || key.length === 0) {
 						throw new Error(`Invalid key format: ${key}`);
 					}
 				}
@@ -222,27 +124,6 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 				return null;
 			},
 			setIsRecording: (isRecording: boolean) => {
-				// #region agent log
-				fetch(
-					"http://127.0.0.1:7245/ingest/669b22f8-172b-4e65-aa3f-1c702ede83f7",
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							"X-Debug-Session-Id": "3997d9",
-						},
-						body: JSON.stringify({
-							sessionId: "3997d9",
-							runId: "initial",
-							hypothesisId: "H2",
-							location: "keybindings-store.ts:setIsRecording",
-							message: "Recording gate updated",
-							data: { isRecording },
-							timestamp: Date.now(),
-						}),
-					},
-				).catch(() => {});
-				// #endregion
 				set({ isRecording });
 			},
 
@@ -288,10 +169,7 @@ function generateKeybindingString(ev: KeyboardEvent): ShortcutKey | null {
 		return `${modifierKey}+${key}` as ShortcutKey;
 	}
 
-	if (
-		isDOMElement(target) &&
-		isTypableDOMElement({ element: target as HTMLElement })
-	)
+	if (isDOMElement(target) && isTypableDOMElement({ element: target as HTMLElement }))
 		return null;
 
 	return `${key}` as ShortcutKey;

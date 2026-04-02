@@ -1,4 +1,4 @@
-import type { KeybindingConfig } from "@/lib/actions/keybinding";
+import type { KeybindingConfig } from "@/types/keybinding";
 
 interface V4State {
 	keybindings: KeybindingConfig;

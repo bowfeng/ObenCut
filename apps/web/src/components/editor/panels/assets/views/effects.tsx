@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { PanelView } from "@/components/editor/panels/assets/views/base-panel";
+import { PanelView } from "@/components/editor/panels/assets/views/base-view";
 import { DraggableItem } from "@/components/editor/panels/assets/draggable-item";
-import { effectsRegistry, EFFECT_TARGET_ELEMENT_TYPES } from "@/lib/effects";
-import { effectPreviewService } from "@/services/renderer/effect-preview";
+import { getAllEffects, EFFECT_TARGET_ELEMENT_TYPES } from "@/lib/effects";
+import {
+	effectPreviewService,
+	onPreviewImageReady,
+} from "@/services/renderer/effect-preview";
 import { useEditor } from "@/hooks/use-editor";
 import { buildEffectElement } from "@/lib/timeline/element-utils";
-import type { EffectDefinition } from "@/lib/effects/types";
+import type { EffectDefinition } from "@/types/effects";
 
 export function EffectsView() {
-	const effects = effectsRegistry.getAll();
+	const effects = getAllEffects();
 
 	return (
 		<PanelView title="Effects">
@@ -47,7 +50,7 @@ function EffectPreviewCanvas({ effectType }: { effectType: string }) {
 		};
 
 		render();
-		return effectPreviewService.onPreviewImageReady({ callback: render });
+		return onPreviewImageReady({ callback: render });
 	}, [effectType]);
 
 	return <canvas ref={canvasRef} className="size-full" />;

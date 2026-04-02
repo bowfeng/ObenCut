@@ -1,19 +1,19 @@
 import { EditorCore } from "@/core";
 import { Command } from "@/lib/commands/base-command";
-import { resolveAnimationTarget, upsertPathKeyframe } from "@/lib/animation";
+import { supportsAnimationProperty, upsertElementKeyframe } from "@/lib/animation";
 import { updateElementInTracks } from "@/lib/timeline";
-import type { TimelineTrack } from "@/lib/timeline";
+import type { TimelineTrack } from "@/types/timeline";
 import type {
-	AnimationPath,
 	AnimationInterpolation,
+	AnimationPropertyPath,
 	AnimationValue,
-} from "@/lib/animation/types";
+} from "@/types/animation";
 
 export class UpsertKeyframeCommand extends Command {
 	private savedState: TimelineTrack[] | null = null;
 	private readonly trackId: string;
 	private readonly elementId: string;
-	private readonly propertyPath: AnimationPath;
+	private readonly propertyPath: AnimationPropertyPath;
 	private readonly time: number;
 	private readonly value: AnimationValue;
 	private readonly interpolation: AnimationInterpolation | undefined;
@@ -30,7 +30,7 @@ export class UpsertKeyframeCommand extends Command {
 	}: {
 		trackId: string;
 		elementId: string;
-		propertyPath: AnimationPath;
+		propertyPath: AnimationPropertyPath;
 		time: number;
 		value: AnimationValue;
 		interpolation?: AnimationInterpolation;
@@ -54,28 +54,22 @@ export class UpsertKeyframeCommand extends Command {
 			tracks: this.savedState,
 			trackId: this.trackId,
 			elementId: this.elementId,
-			update: (element) => {
-				const target = resolveAnimationTarget({
+			elementPredicate: (element) =>
+				supportsAnimationProperty({
 					element,
-					path: this.propertyPath,
-				});
-				if (!target) {
-					return element;
-				}
-
+					propertyPath: this.propertyPath,
+				}),
+			update: (element) => {
 				const boundedTime = Math.max(0, Math.min(this.time, element.duration));
 				return {
 					...element,
-					animations: upsertPathKeyframe({
+					animations: upsertElementKeyframe({
 						animations: element.animations,
 						propertyPath: this.propertyPath,
 						time: boundedTime,
 						value: this.value,
 						interpolation: this.interpolation,
 						keyframeId: this.keyframeId,
-						valueKind: target.valueKind,
-						defaultInterpolation: target.defaultInterpolation,
-						numericRange: target.numericRange,
 					}),
 				};
 			},

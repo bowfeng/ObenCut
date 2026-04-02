@@ -47,6 +47,38 @@ services:
       retries: 5
       start_period: 10s
 
+  comfyui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile-GPU.comfyui
+    container_name: opencut-comfyui
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui_data:/ComfyUI/input
+      - comfyui_output:/ComfyUI/output
+      - comfyui_temp:/ComfyUI/temp
+      - comfyui_models:/ComfyUI/models
+    environment:
+      - COMFYUI_QUEUE_PROMPT=true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8188/system_stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      redis:
+        condition: service_healthy
+
   web:
     build:
       context: .
@@ -57,6 +89,13 @@ services:
         - NEXT_PUBLIC_MARBLE_API_URL=${NEXT_PUBLIC_MARBLE_API_URL:-https://api.marblecms.com}
         - MARBLE_WORKSPACE_KEY=${MARBLE_WORKSPACE_KEY:-build-placeholder}
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     ports:
       - "3100:3000"
     environment:
@@ -90,6 +129,10 @@ services:
 
 volumes:
   postgres_data:
+  comfyui_data:
+  comfyui_output:
+  comfyui_temp:
+  comfyui_models:
 
 networks:
   default:

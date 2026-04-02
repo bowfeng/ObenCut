@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { cn } from "@/utils/ui";
 import { Sun03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import * as React from "react";
 
 interface ThemeToggleProps {
 	className?: string;
@@ -17,7 +18,19 @@ export function ThemeToggle({
 	iconClassName,
 	onToggle,
 }: ThemeToggleProps) {
-	const { theme, setTheme } = useTheme();
+	const { theme, setTheme, resolvedTheme } = useTheme();
+	const [mounted, setMounted] = React.useState(false);
+
+	React.useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	// Use placeholder during SSR to match server render, switch to actual text after hydration
+	const toggleText = mounted && resolvedTheme
+		? resolvedTheme === "dark"
+			? "Light"
+			: "Dark"
+		: "Toggle theme";
 
 	return (
 		<Button
@@ -33,7 +46,7 @@ export function ThemeToggle({
 				icon={Sun03Icon}
 				className={cn("!size-[1.1rem]", iconClassName)}
 			/>
-			<span className="sr-only">{theme === "dark" ? "Light" : "Dark"}</span>
+			<span className="sr-only">{toggleText}</span>
 		</Button>
 	);
 }

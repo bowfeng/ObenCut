@@ -1,4 +1,4 @@
-import type { ExportOptions } from "@/lib/export";
+import type { ExportOptions } from "@/types/export";
 
 export const DEFAULT_EXPORT_OPTIONS = {
 	format: "mp4",

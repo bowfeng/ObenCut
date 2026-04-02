@@ -1,42 +1,29 @@
 import { generateUUID } from "@/utils/id";
-import { buildDefaultParamValues } from "@/lib/registry";
-import { effectsRegistry } from "./registry";
-import type { ParamValues } from "@/lib/params";
-import type { Effect, EffectDefinition, EffectPass } from "@/lib/effects/types";
-import { VISUAL_ELEMENT_TYPES } from "@/lib/timeline";
+import { getEffect } from "./registry";
+import type { Effect, EffectParamValues } from "@/types/effects";
+import type { VisualElement } from "@/types/timeline";
 
-export { effectsRegistry } from "./registry";
+export { getEffect, getAllEffects, hasEffect, registerEffect } from "./registry";
 export { registerDefaultEffects } from "./definitions";
 
-export function resolveEffectPasses({
-	definition,
-	effectParams,
-	width,
-	height,
-}: {
-	definition: EffectDefinition;
-	effectParams: ParamValues;
-	width: number;
-	height: number;
-}): EffectPass[] {
-	if (definition.renderer.buildPasses) {
-		return definition.renderer.buildPasses({ effectParams, width, height });
-	}
-	return definition.renderer.passes.map((pass) => ({
-		shader: pass.shader,
-		uniforms: pass.uniforms({ effectParams, width, height }),
-	}));
-}
-
-export const EFFECT_TARGET_ELEMENT_TYPES = VISUAL_ELEMENT_TYPES;
+export const EFFECT_TARGET_ELEMENT_TYPES: VisualElement["type"][] = [
+	"video",
+	"image",
+	"text",
+	"sticker",
+];
 
 export function buildDefaultEffectInstance({
 	effectType,
 }: {
 	effectType: string;
 }): Effect {
-	const definition = effectsRegistry.get(effectType);
-	const params: ParamValues = buildDefaultParamValues(definition.params);
+	const definition = getEffect({ effectType });
+
+	const params: EffectParamValues = {};
+	for (const paramDef of definition.params) {
+		params[paramDef.key] = paramDef.default;
+	}
 
 	return {
 		id: generateUUID(),

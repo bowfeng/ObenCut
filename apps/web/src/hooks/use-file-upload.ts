@@ -4,7 +4,7 @@ import { hasDragData } from "@/lib/drag-data";
 interface UseFileUploadOptions {
 	accept?: string;
 	multiple?: boolean;
-	onFilesSelected?: (files: File[]) => void;
+	onFilesSelected?: (files: FileList) => void;
 }
 
 function containsFiles(dataTransfer: DataTransfer): boolean {
@@ -29,8 +29,8 @@ export function useFileUpload({
 	}
 
 	function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-		const files = Array.from(event.target.files ?? []);
-		if (files.length > 0 && onFilesSelected) {
+		const files = event.target.files;
+		if (files && files.length > 0 && onFilesSelected) {
 			onFilesSelected(files);
 		}
 
@@ -71,13 +71,15 @@ export function useFileUpload({
 		dragCounterRef.current = 0;
 
 		if (onFilesSelected && containsFiles(e.dataTransfer)) {
-			const files = Array.from(e.dataTransfer.files);
+			const files = e.dataTransfer.files;
 			const shouldUseMultiple = multiple ?? false;
 
 			if (shouldUseMultiple) {
 				onFilesSelected(files);
 			} else if (files.length > 0) {
-				onFilesSelected([files[0]]);
+				const dataTransfer = new DataTransfer();
+				dataTransfer.items.add(files[0]);
+				onFilesSelected(dataTransfer.files);
 			}
 		}
 	}

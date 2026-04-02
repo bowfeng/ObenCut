@@ -1,27 +1,20 @@
-import type { TProject, TProjectMetadata } from "@/lib/project/types";
+import type { TProject, TProjectMetadata } from "@/types/project";
 import { getProjectDurationFromScenes } from "@/lib/scenes";
-import type { MediaAsset } from "@/lib/media/types";
+import type { MediaAsset } from "@/types/assets";
 import { IndexedDBAdapter } from "./indexeddb-adapter";
 import { OPFSAdapter } from "./opfs-adapter";
-import {
-	type StorageCapacityCheckResult,
-	StorageQuotaExceededError,
-	evaluateStorageCapacity,
-	isStorageQuotaExceededError,
-	readStorageQuotaStatus,
-} from "./quota";
 import type {
 	MediaAssetData,
 	StorageConfig,
 	SerializedProject,
 	SerializedScene,
 } from "./types";
-import type { SavedSoundsData, SavedSound, SoundEffect } from "@/lib/sounds/types";
+import type { SavedSoundsData, SavedSound, SoundEffect } from "@/types/sounds";
 import {
 	migrations,
 	runStorageMigrations,
 } from "@/services/storage/migrations";
-import type { Bookmark, TimelineTrack, TScene } from "@/lib/timeline";
+import type { Bookmark, TimelineTrack, TScene } from "@/types/timeline";
 
 function normalizeBookmarks({ raw }: { raw: unknown }): Bookmark[] {
 	if (!Array.isArray(raw)) return [];
@@ -95,22 +88,6 @@ class StorageService {
 		const mediaAssetsAdapter = new OPFSAdapter(`media-files-${projectId}`);
 
 		return { mediaMetadataAdapter, mediaAssetsAdapter };
-	}
-
-	async canStoreFile({
-		size,
-	}: {
-		size: number;
-	}): Promise<StorageCapacityCheckResult> {
-		const quotaStatus = await readStorageQuotaStatus();
-		return evaluateStorageCapacity({
-			requiredBytes: size,
-			quotaStatus,
-		});
-	}
-
-	isQuotaExceededError({ error }: { error: unknown }): boolean {
-		return isStorageQuotaExceededError({ error });
 	}
 
 	private stripAudioBuffers({
@@ -261,6 +238,8 @@ class StorageService {
 		const { mediaMetadataAdapter, mediaAssetsAdapter } =
 			this.getProjectMediaAdapters({ projectId });
 
+		await mediaAssetsAdapter.set(mediaAsset.id, mediaAsset.file);
+
 		const metadata: MediaAssetData = {
 			id: mediaAsset.id,
 			name: mediaAsset.name,
@@ -274,73 +253,70 @@ class StorageService {
 			ephemeral: mediaAsset.ephemeral,
 		};
 
-		try {
-			await mediaAssetsAdapter.set(mediaAsset.id, mediaAsset.file);
-			await mediaMetadataAdapter.set(mediaAsset.id, metadata);
-		} catch (error) {
-			try {
-				await mediaAssetsAdapter.remove(mediaAsset.id);
-			} catch {
-				// Ignore cleanup failures so the original storage error is preserved.
-			}
-
-			if (this.isQuotaExceededError({ error })) {
-				throw new StorageQuotaExceededError({
-					requiredBytes: mediaAsset.file.size,
-				});
-			}
-
-			throw error;
-		}
+		await mediaMetadataAdapter.set(mediaAsset.id, metadata);
 	}
 
-	async loadMediaAsset({
-		projectId,
-		id,
-	}: {
-		projectId: string;
-		id: string;
-	}): Promise<MediaAsset | null> {
-		const { mediaMetadataAdapter, mediaAssetsAdapter } =
-			this.getProjectMediaAdapters({ projectId });
+async loadMediaAsset({
+	projectId,
+	id,
+}: {
+	projectId: string;
+	id: string;
+}): Promise<MediaAsset | null> {
+	const { mediaMetadataAdapter, mediaAssetsAdapter } =
+		this.getProjectMediaAdapters({ projectId });
 
-		const [file, metadata] = await Promise.all([
-			mediaAssetsAdapter.get(id),
-			mediaMetadataAdapter.get(id),
-		]);
+	const [file, metadata] = await Promise.all([
+		mediaAssetsAdapter.get(id),
+		mediaMetadataAdapter.get(id),
+	]);
 
-		if (!file || !metadata) return null;
+	if (!file || !metadata) return null;
 
-		let url: string;
-		if (metadata.type === "image" && (!file.type || file.type === "")) {
-			try {
-				const text = await file.text();
-				if (text.trim().startsWith("<svg")) {
-					const svgBlob = new Blob([text], { type: "image/svg+xml" });
-					url = URL.createObjectURL(svgBlob);
-				} else {
-					url = URL.createObjectURL(file);
-				}
-			} catch {
-				url = URL.createObjectURL(file);
-			}
-		} else {
-			url = URL.createObjectURL(file);
-		}
-
-		return {
-			id: metadata.id,
-			name: metadata.name,
-			type: metadata.type,
-			file,
-			url,
-			width: metadata.width,
-			height: metadata.height,
-			duration: metadata.duration,
-			thumbnailUrl: metadata.thumbnailUrl,
-			ephemeral: metadata.ephemeral,
-		};
+	// 尝试从 File 读取 Data URL
+	const dataUrl = await this.readFileAsDataURL(file);
+	
+	let url: string;
+	if (dataUrl) {
+		// 如果是 Data URL 格式，直接使用它
+		url = dataUrl;
+	} else if (metadata.type === "image") {
+		// 对于图像，使用临时对象 URL
+		url = URL.createObjectURL(file);
+	} else {
+		url = URL.createObjectURL(file);
 	}
+
+	return {
+		id: metadata.id,
+		name: metadata.name,
+		type: metadata.type,
+		file,
+		url,
+		width: metadata.width,
+		height: metadata.height,
+		duration: metadata.duration,
+		thumbnailUrl: metadata.thumbnailUrl,
+		ephemeral: metadata.ephemeral,
+	};
+}
+
+/**
+ * 尝试从 File 对象读取 Data URL
+ * 支持 data:image/png;base64,...格式的 File
+ */
+private async readFileAsDataURL(file: File): Promise<string | null> {
+	try {
+		const text = await file.text();
+		// 检查是否是 Data URL 格式
+		if (text.startsWith("data:")) {
+			return text;
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
 
 	async loadAllMediaAssets({
 		projectId,
@@ -378,6 +354,31 @@ class StorageService {
 			mediaAssetsAdapter.remove(id),
 			mediaMetadataAdapter.remove(id),
 		]);
+	}
+
+	async updateMediaAsset({
+		projectId,
+		id,
+		name,
+	}: {
+		projectId: string;
+		id: string;
+		name: string;
+	}): Promise<void> {
+		const { mediaMetadataAdapter, mediaAssetsAdapter } =
+			this.getProjectMediaAdapters({ projectId });
+
+		const metadata = await mediaMetadataAdapter.get(id);
+		if (!metadata) {
+			throw new Error(`Media asset not found: ${id}`);
+		}
+
+		const updatedMetadata: MediaAssetData = {
+			...metadata,
+			name,
+		};
+
+		await mediaMetadataAdapter.set(id, updatedMetadata);
 	}
 
 	async deleteProjectMedia({

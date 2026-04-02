@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatTimeCode, parseTimeCode, type TimeCodeFormat } from "opencut-wasm";
+import { formatTimeCode, parseTimeCode } from "@/lib/time";
+import type { TTimeCode } from "@/types/time";
 import { cn } from "@/utils/ui";
 
 interface EditableTimecodeProps {
 	time: number;
 	duration: number;
-	format?: TimeCodeFormat;
+	format?: TTimeCode;
 	fps: number;
 	onTimeChange?: ({ time }: { time: number }) => void;
 	className?: string;
@@ -28,7 +29,7 @@ export function EditableTimecode({
 	const [hasError, setHasError] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const enterPressedRef = useRef(false);
-	const formattedTime = formatTimeCode({ timeInSeconds: time, format, fps }) ?? "";
+	const formattedTime = formatTimeCode({ timeInSeconds: time, format, fps });
 
 	const startEditing = () => {
 		if (disabled) return;
@@ -48,7 +49,7 @@ export function EditableTimecode({
 	const applyEdit = () => {
 		const parsedTime = parseTimeCode({ timeCode: inputValue, format, fps });
 
-		if (parsedTime == null) {
+		if (parsedTime === null) {
 			setHasError(true);
 			return;
 		}
@@ -65,13 +66,16 @@ export function EditableTimecode({
 		enterPressedRef.current = false;
 	};
 
-	const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-		if (event.key === "Enter") {
-			event.preventDefault();
+	const handleKeyDown = ({
+		key,
+		preventDefault,
+	}: React.KeyboardEvent<HTMLInputElement>) => {
+		if (key === "Enter") {
+			preventDefault();
 			enterPressedRef.current = true;
 			applyEdit();
-		} else if (event.key === "Escape") {
-			event.preventDefault();
+		} else if (key === "Escape") {
+			preventDefault();
 			cancelEditing();
 		}
 	};
@@ -89,13 +93,14 @@ export function EditableTimecode({
 		}
 	};
 
-	const handleDisplayKeyDown = (
-		event: React.KeyboardEvent<HTMLButtonElement>,
-	) => {
+	const handleDisplayKeyDown = ({
+		key,
+		preventDefault,
+	}: React.KeyboardEvent<HTMLButtonElement>) => {
 		if (disabled) return;
 
-		if (event.key === "Enter" || event.key === " ") {
-			event.preventDefault();
+		if (key === "Enter" || key === " ") {
+			preventDefault();
 			startEditing();
 		}
 	};

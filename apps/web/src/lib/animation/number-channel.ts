@@ -2,7 +2,7 @@ import type {
 	AnimationPropertyPath,
 	ElementAnimations,
 	NumberAnimationChannel,
-} from "@/lib/animation/types";
+} from "@/types/animation";
 
 export function getNumberChannelForPath({
 	animations,

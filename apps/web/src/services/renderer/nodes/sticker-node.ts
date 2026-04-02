@@ -4,8 +4,6 @@ import { VisualNode, type VisualNodeParams } from "./visual-node";
 
 export interface StickerNodeParams extends VisualNodeParams {
 	stickerId: string;
-	intrinsicWidth?: number;
-	intrinsicHeight?: number;
 }
 
 interface CachedStickerSource {
@@ -16,7 +14,7 @@ interface CachedStickerSource {
 
 const stickerSourceCache = new Map<string, Promise<CachedStickerSource>>();
 
-function loadStickerSource({ stickerId }: { stickerId: string }): Promise<CachedStickerSource> {
+function loadStickerSource(stickerId: string): Promise<CachedStickerSource> {
 	const cached = stickerSourceCache.get(stickerId);
 	if (cached) return cached;
 
@@ -35,7 +33,7 @@ function loadStickerSource({ stickerId }: { stickerId: string }): Promise<Cached
 			image.src = url;
 		});
 
-		return { source: image, width: image.naturalWidth, height: image.naturalHeight };
+		return { source: image, width: 200, height: 200 };
 	})();
 
 	stickerSourceCache.set(stickerId, promise);
@@ -47,7 +45,7 @@ export class StickerNode extends VisualNode<StickerNodeParams> {
 
 	constructor(params: StickerNodeParams) {
 		super(params);
-		this.cachedSource = loadStickerSource({ stickerId: params.stickerId });
+		this.cachedSource = loadStickerSource(params.stickerId);
 	}
 
 	async render({ renderer, time }: { renderer: CanvasRenderer; time: number }) {
@@ -57,19 +55,13 @@ export class StickerNode extends VisualNode<StickerNodeParams> {
 			return;
 		}
 
-		const { source, width: loadedWidth, height: loadedHeight } =
-			await this.cachedSource;
-
-		// Prefer element-stored intrinsic dimensions as the geometry authority.
-		// The loaded image is only the drawable source.
-		const sourceWidth = this.params.intrinsicWidth ?? loadedWidth;
-		const sourceHeight = this.params.intrinsicHeight ?? loadedHeight;
+		const { source, width, height } = await this.cachedSource;
 
 		this.renderVisual({
 			renderer,
 			source,
-			sourceWidth,
-			sourceHeight,
+			sourceWidth: width,
+			sourceHeight: height,
 			timelineTime: time,
 		});
 	}

@@ -1,5 +1,5 @@
-import type { TextBackground, TextElement } from "@/lib/timeline";
-import { DEFAULTS } from "@/lib/timeline/defaults";
+import { DEFAULT_TEXT_BACKGROUND } from "@/constants/text-constants";
+import type { TextBackground, TextElement } from "@/types/timeline";
 
 type TextRect = {
 	left: number;
@@ -12,23 +12,6 @@ export interface TextBlockMeasurement {
 	visualCenterOffset: number;
 	height: number;
 	maxWidth: number;
-}
-
-type CanvasContext =
-	| CanvasRenderingContext2D
-	| OffscreenCanvasRenderingContext2D;
-
-export function setCanvasLetterSpacing({
-	ctx,
-	letterSpacingPx,
-}: {
-	ctx: CanvasContext;
-	letterSpacingPx: number;
-}): void {
-	if ("letterSpacing" in ctx) {
-		(ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
-			`${letterSpacingPx}px`;
-	}
 }
 
 export function getMetricAscent({
@@ -135,11 +118,11 @@ export function getTextBackgroundRect({
 
 	const textRect = getTextRect({ textAlign, block });
 	const paddingX =
-		(background.paddingX ?? DEFAULTS.text.background.paddingX) * fontSizeRatio;
+		(background.paddingX ?? DEFAULT_TEXT_BACKGROUND.paddingX) * fontSizeRatio;
 	const paddingY =
-		(background.paddingY ?? DEFAULTS.text.background.paddingY) * fontSizeRatio;
-	const offsetX = background.offsetX ?? DEFAULTS.text.background.offsetX;
-	const offsetY = background.offsetY ?? DEFAULTS.text.background.offsetY;
+		(background.paddingY ?? DEFAULT_TEXT_BACKGROUND.paddingY) * fontSizeRatio;
+	const offsetX = background.offsetX ?? DEFAULT_TEXT_BACKGROUND.offsetX;
+	const offsetY = background.offsetY ?? DEFAULT_TEXT_BACKGROUND.offsetY;
 
 	return {
 		left: textRect.left - paddingX + offsetX,

@@ -1,49 +1,45 @@
-import { Command, type CommandResult } from "@/lib/commands/base-command";
+import { Command } from "@/lib/commands/base-command";
 import { EditorCore } from "@/core";
 import type {
 	TimelineTrack,
 	TimelineElement,
 	ClipboardItem,
-} from "@/lib/timeline";
+} from "@/types/timeline";
 import { generateUUID } from "@/utils/id";
+import { wouldElementOverlap } from "@/lib/timeline/element-utils";
 import {
-	applyPlacement,
-	resolveTrackPlacement,
+	buildEmptyTrack,
+	getHighestInsertIndexForTrack,
 	isMainTrack,
 	enforceMainTrackStart,
-} from "@/lib/timeline/placement";
+} from "@/lib/timeline/track-utils";
 import { cloneAnimations } from "@/lib/animation";
 
 export class PasteCommand extends Command {
 	private savedState: TimelineTrack[] | null = null;
 	private pastedElements: { trackId: string; elementId: string }[] = [];
-	private readonly time: number;
-	private readonly clipboardItems: ClipboardItem[];
+	private previousSelection: { trackId: string; elementId: string }[] = [];
 
-	constructor({
-		time,
-		clipboardItems,
-	}: {
-		time: number;
-		clipboardItems: ClipboardItem[];
-	}) {
+	constructor(
+		private time: number,
+		private clipboardItems: ClipboardItem[],
+	) {
 		super();
-		this.time = time;
-		this.clipboardItems = clipboardItems;
 	}
 
-	execute(): CommandResult | undefined {
+	execute(): void {
 		if (this.clipboardItems.length === 0) return;
 
 		const editor = EditorCore.getInstance();
 		this.savedState = editor.timeline.getTracks();
+		this.previousSelection = editor.selection.getSelectedElements();
 		this.pastedElements = [];
 
 		const minStart = Math.min(
 			...this.clipboardItems.map((item) => item.element.startTime),
 		);
 
-		let updatedTracks = [...this.savedState];
+		const updatedTracks = [...this.savedState];
 		const itemsByTrackId = groupClipboardItemsByTrackId({
 			clipboardItems: this.clipboardItems,
 		});
@@ -63,22 +59,17 @@ export class PasteCommand extends Command {
 			const sourceTrackIndex = updatedTracks.findIndex(
 				(track) => track.id === trackId,
 			);
-			const placementResult = resolveTrackPlacement({
+			const resolvedTargetIndex = resolveTargetTrackIndex({
 				tracks: updatedTracks,
+				sourceTrackIndex,
 				trackType,
-				timeSpans: elementsToAdd.map((element) => ({
-					startTime: element.startTime,
-					duration: element.duration,
-				})),
-				strategy: { type: "aboveSource", sourceTrackIndex },
+				elements: elementsToAdd,
 			});
-			if (!placementResult) {
-				continue;
-			}
 
-			let elementsForPlacement = elementsToAdd;
-			if (placementResult.kind === "existingTrack") {
-				const targetTrack = updatedTracks[placementResult.trackIndex];
+			if (resolvedTargetIndex >= 0) {
+				const targetTrack = updatedTracks[resolvedTargetIndex];
+				let adjustedElements = elementsToAdd;
+
 				if (isMainTrack(targetTrack)) {
 					const earliestElement = elementsToAdd.reduce((earliest, element) =>
 						element.startTime < earliest.startTime ? element : earliest,
@@ -91,28 +82,39 @@ export class PasteCommand extends Command {
 					const delta = adjustedEarliestStartTime - earliestElement.startTime;
 
 					if (delta !== 0) {
-						elementsForPlacement = elementsToAdd.map((element) => ({
+						adjustedElements = elementsToAdd.map((element) => ({
 							...element,
 							startTime: Math.max(0, element.startTime + delta),
 						}));
 					}
 				}
-			}
 
-			const applied = applyPlacement({
-				tracks: updatedTracks,
-				placementResult,
-				elements: elementsForPlacement,
-			});
-			if (!applied) {
+				updatedTracks[resolvedTargetIndex] = {
+					...targetTrack,
+					elements: [...targetTrack.elements, ...adjustedElements],
+				} as TimelineTrack;
+				for (const element of adjustedElements) {
+					this.pastedElements.push({
+						trackId: targetTrack.id,
+						elementId: element.id,
+					});
+				}
 				continue;
 			}
 
-			updatedTracks = applied.updatedTracks;
-
-			for (const element of elementsForPlacement) {
+			const insertIndex = resolveInsertIndexForNewTrack({
+				tracks: updatedTracks,
+				sourceTrackIndex,
+				trackType,
+			});
+			const newTrack = buildTrackWithElements({
+				trackType,
+				elements: elementsToAdd,
+			});
+			updatedTracks.splice(insertIndex, 0, newTrack);
+			for (const element of elementsToAdd) {
 				this.pastedElements.push({
-					trackId: applied.targetTrackId,
+					trackId: newTrack.id,
 					elementId: element.id,
 				});
 			}
@@ -121,7 +123,7 @@ export class PasteCommand extends Command {
 		editor.timeline.updateTracks(updatedTracks);
 
 		if (this.pastedElements.length > 0) {
-			return { select: this.pastedElements };
+			editor.selection.setSelectedElements({ elements: this.pastedElements });
 		}
 	}
 
@@ -129,6 +131,9 @@ export class PasteCommand extends Command {
 		if (this.savedState) {
 			const editor = EditorCore.getInstance();
 			editor.timeline.updateTracks(this.savedState);
+			editor.selection.setSelectedElements({
+				elements: this.previousSelection,
+			});
 		}
 	}
 
@@ -182,3 +187,107 @@ function buildPastedElements({
 	return elementsToAdd;
 }
 
+function resolveTargetTrackIndex({
+	tracks,
+	sourceTrackIndex,
+	trackType,
+	elements,
+}: {
+	tracks: TimelineTrack[];
+	sourceTrackIndex: number;
+	trackType: ClipboardItem["trackType"];
+	elements: TimelineElement[];
+}): number {
+	if (sourceTrackIndex >= 0) {
+		const aboveIndex = sourceTrackIndex - 1;
+		if (aboveIndex < 0) {
+			return -1;
+		}
+
+		const aboveTrack = tracks[aboveIndex];
+		if (aboveTrack.type !== trackType) {
+			return -1;
+		}
+
+		const canPlaceOnAbove = canPlaceElementsOnTrack({
+			track: aboveTrack,
+			elements,
+		});
+		return canPlaceOnAbove ? aboveIndex : -1;
+	}
+
+	const highestCompatibleIndex = tracks.findIndex(
+		(track) => track.type === trackType,
+	);
+	if (highestCompatibleIndex < 0) {
+		return -1;
+	}
+
+	const highestCompatibleTrack = tracks[highestCompatibleIndex];
+	const canPlaceOnHighest = canPlaceElementsOnTrack({
+		track: highestCompatibleTrack,
+		elements,
+	});
+
+	return canPlaceOnHighest ? highestCompatibleIndex : -1;
+}
+
+function resolveInsertIndexForNewTrack({
+	tracks,
+	sourceTrackIndex,
+	trackType,
+}: {
+	tracks: TimelineTrack[];
+	sourceTrackIndex: number;
+	trackType: ClipboardItem["trackType"];
+}): number {
+	if (sourceTrackIndex >= 0) {
+		return sourceTrackIndex;
+	}
+
+	const highestCompatibleIndex = tracks.findIndex(
+		(track) => track.type === trackType,
+	);
+	if (highestCompatibleIndex >= 0) {
+		return highestCompatibleIndex;
+	}
+
+	return getHighestInsertIndexForTrack({ tracks, trackType });
+}
+
+function canPlaceElementsOnTrack({
+	track,
+	elements,
+}: {
+	track: TimelineTrack;
+	elements: TimelineElement[];
+}): boolean {
+	for (const element of elements) {
+		const endTime = element.startTime + element.duration;
+		const hasOverlap = wouldElementOverlap({
+			elements: track.elements,
+			startTime: element.startTime,
+			endTime,
+		});
+		if (hasOverlap) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+function buildTrackWithElements({
+	trackType,
+	elements,
+}: {
+	trackType: ClipboardItem["trackType"];
+	elements: TimelineElement[];
+}): TimelineTrack {
+	const newTrackId = generateUUID();
+	const newTrackBase = buildEmptyTrack({ id: newTrackId, type: trackType });
+	return {
+		...newTrackBase,
+		elements,
+	} as TimelineTrack;
+}

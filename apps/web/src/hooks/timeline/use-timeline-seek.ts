@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import type { MutableRefObject, RefObject } from "react";
-import { BASE_TIMELINE_PIXELS_PER_SECOND } from "@/lib/timeline/scale";
-import { getSnappedSeekTime } from "opencut-wasm";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
+import { getSnappedSeekTime } from "@/lib/time";
 import { useEditor } from "../use-editor";
 
 interface UseTimelineSeekProps {
@@ -132,12 +132,16 @@ export function useTimelineSeek({
 				Math.min(
 					duration,
 					(mouseX + scrollLeft) /
-						(BASE_TIMELINE_PIXELS_PER_SECOND * zoomLevel),
+						(TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel),
 				),
 			);
 
 			const projectFps = activeProject?.settings.fps || 30;
-			const time = getSnappedSeekTime({ rawTime, duration, fps: projectFps });
+			const time = getSnappedSeekTime({
+				rawTime,
+				duration,
+				fps: projectFps,
+			});
 			seek(time);
 			editor.project.setTimelineViewState({
 				viewState: {

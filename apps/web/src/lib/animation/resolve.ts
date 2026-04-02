@@ -1,16 +1,8 @@
-import type {
-	AnimationPropertyPath,
-	ElementAnimations,
-} from "@/lib/animation/types";
-import type { Transform } from "@/lib/rendering";
-import {
-	getColorValueAtTime,
-	getNumberChannelValueAtTime,
-	getVectorChannelValueAtTime,
-} from "./interpolation";
+import type { AnimationPropertyPath, ElementAnimations } from "@/types/animation";
+import type { Transform } from "@/types/timeline";
+import { getColorValueAtTime, getNumberChannelValueAtTime } from "./interpolation";
 import { getColorChannelForPath } from "./color-channel";
 import { getNumberChannelForPath } from "./number-channel";
-import { getVectorChannelForPath } from "./vector-channel";
 
 export function getElementLocalTime({
 	timelineTime,
@@ -38,35 +30,47 @@ export function resolveTransformAtTime({
 	animations,
 	localTime,
 }: {
-	baseTransform: Transform;
+	baseTransform?: Transform;
 	animations: ElementAnimations | undefined;
 	localTime: number;
 }): Transform {
 	const safeLocalTime = Math.max(0, localTime);
+	
+	// 如果 baseTransform 不存在，使用默认值
+	const defaultTransform: Transform = {
+		scale: 1,
+		position: { x: 0, y: 0 },
+		rotate: 0,
+	};
+	
+	const fallback = baseTransform || defaultTransform;
+	
 	return {
-		position: getVectorChannelValueAtTime({
-			channel: getVectorChannelForPath({
-				animations,
-				propertyPath: "transform.position",
+		position: {
+			x: getNumberChannelValueAtTime({
+				channel: getNumberChannelForPath({
+					animations,
+					propertyPath: "transform.position.x",
+				}),
+				time: safeLocalTime,
+				fallbackValue: fallback.position?.x ?? 0,
 			}),
-			time: safeLocalTime,
-			fallbackValue: baseTransform.position,
-		}),
-		scaleX: getNumberChannelValueAtTime({
+			y: getNumberChannelValueAtTime({
+				channel: getNumberChannelForPath({
+					animations,
+					propertyPath: "transform.position.y",
+				}),
+				time: safeLocalTime,
+				fallbackValue: fallback.position?.y ?? 0,
+			}),
+		},
+		scale: getNumberChannelValueAtTime({
 			channel: getNumberChannelForPath({
 				animations,
-				propertyPath: "transform.scaleX",
+				propertyPath: "transform.scale",
 			}),
 			time: safeLocalTime,
-			fallbackValue: baseTransform.scaleX,
-		}),
-		scaleY: getNumberChannelValueAtTime({
-			channel: getNumberChannelForPath({
-				animations,
-				propertyPath: "transform.scaleY",
-			}),
-			time: safeLocalTime,
-			fallbackValue: baseTransform.scaleY,
+			fallbackValue: fallback.scale ?? 1,
 		}),
 		rotate: getNumberChannelValueAtTime({
 			channel: getNumberChannelForPath({
@@ -74,7 +78,7 @@ export function resolveTransformAtTime({
 				propertyPath: "transform.rotate",
 			}),
 			time: safeLocalTime,
-			fallbackValue: baseTransform.rotate,
+			fallbackValue: fallback.rotate ?? 0,
 		}),
 	};
 }
@@ -131,5 +135,24 @@ export function resolveColorAtTime({
 		channel: getColorChannelForPath({ animations, propertyPath }),
 		time: Math.max(0, localTime),
 		fallbackValue: baseColor,
+	});
+}
+
+export function resolveVolumeAtTime({
+	baseVolume,
+	animations,
+	localTime,
+}: {
+	baseVolume: number;
+	animations: ElementAnimations | undefined;
+	localTime: number;
+}): number {
+	return getNumberChannelValueAtTime({
+		channel: getNumberChannelForPath({
+			animations,
+			propertyPath: "volume",
+		}),
+		time: Math.max(0, localTime),
+		fallbackValue: baseVolume,
 	});
 }

@@ -2,13 +2,12 @@
 
 import { useElementSelection } from "@/hooks/timeline/element/use-element-selection";
 import { TimelineElement } from "./timeline-element";
-import type { TimelineTrack } from "@/lib/timeline";
-import type { TimelineElement as TimelineElementType } from "@/lib/timeline";
+import type { TimelineTrack } from "@/types/timeline";
+import type { TimelineElement as TimelineElementType } from "@/types/timeline";
 import type { SnapPoint } from "@/lib/timeline/snap-utils";
-import { TIMELINE_LAYERS } from "./layers";
-import { BASE_TIMELINE_PIXELS_PER_SECOND } from "@/lib/timeline/scale";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useEdgeAutoScroll } from "@/hooks/timeline/use-edge-auto-scroll";
-import type { ElementDragState } from "@/lib/timeline";
+import type { ElementDragState } from "@/types/timeline";
 import { useEditor } from "@/hooks/use-editor";
 
 interface TimelineTrackContentProps {
@@ -31,7 +30,7 @@ interface TimelineTrackContentProps {
 		track: TimelineTrack;
 	}) => void;
 	onTrackMouseDown?: (event: React.MouseEvent) => void;
-	onTrackMouseUp?: (event: React.MouseEvent) => void;
+	onTrackClick?: (event: React.MouseEvent) => void;
 	shouldIgnoreClick?: () => boolean;
 	targetElementId?: string | null;
 }
@@ -48,53 +47,38 @@ export function TimelineTrackContent({
 	onElementMouseDown,
 	onElementClick,
 	onTrackMouseDown,
-	onTrackMouseUp,
+	onTrackClick,
 	shouldIgnoreClick,
 	targetElementId = null,
 }: TimelineTrackContentProps) {
+	const editor = useEditor();
 	const { isElementSelected } = useElementSelection();
-	const duration = useEditor((e) => e.timeline.getTotalDuration());
+
+	const duration = editor.timeline.getTotalDuration();
 
 	useEdgeAutoScroll({
 		isActive: dragState.isDragging,
 		getMouseClientX: () => lastMouseXRef.current ?? 0,
 		rulerScrollRef,
 		tracksScrollRef,
-		contentWidth: duration * BASE_TIMELINE_PIXELS_PER_SECOND * zoomLevel,
+		contentWidth: duration * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel,
 	});
 
 	return (
-		<div className="relative size-full">
-			<button
-				type="button"
-				className="absolute inset-0 m-0 size-full appearance-none border-0 bg-transparent p-0"
-				aria-label={`Select ${track.name} track`}
-			onMouseUp={(event) => {
-					if (shouldIgnoreClick?.()) return;
-				onTrackMouseUp?.(event);
-				}}
-				onMouseDown={(event) => {
-					event.preventDefault();
-					onTrackMouseDown?.(event);
-				}}
-			/>
-			{/* biome-ignore lint/a11y/noStaticElementInteractions: empty track area is a pointer-only seek surface */}
-			<div
-				className="relative h-full min-w-full"
-				style={{ zIndex: TIMELINE_LAYERS.trackContent }}
-				onMouseUp={(event) => {
-					if (event.target !== event.currentTarget) return;
-					if (shouldIgnoreClick?.()) return;
-					onTrackMouseUp?.(event);
-				}}
-				onMouseDown={(event) => {
-					if (event.target !== event.currentTarget) return;
-					event.preventDefault();
-					onTrackMouseDown?.(event);
-				}}
-			>
+		<div
+			className="size-full"
+			onClick={(event) => {
+				if (shouldIgnoreClick?.()) return;
+				onTrackClick?.(event);
+			}}
+			onMouseDown={(event) => {
+				event.preventDefault();
+				onTrackMouseDown?.(event);
+			}}
+		>
+			<div className="relative h-full min-w-full">
 				{track.elements.length === 0 ? (
-					<div className="text-muted-foreground border-muted/30 pointer-events-none flex size-full items-center justify-center rounded-sm border-2 border-dashed text-xs" />
+					<div className="text-muted-foreground border-muted/30 flex size-full items-center justify-center rounded-sm border-2 border-dashed text-xs" />
 				) : (
 					track.elements.map((element) => {
 						const isSelected = isElementSelected({

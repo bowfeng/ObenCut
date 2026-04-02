@@ -17,10 +17,7 @@ bun.lockb
 .content-collections
 
 # Twiggy
-.cursor/
-
-.open-next
-
-target/
-
-.cargo-tools/
+.cursor/rules/file-structure.mdc
+# Claw Code local artifacts
+.claw/settings.local.json
+.claw/sessions/

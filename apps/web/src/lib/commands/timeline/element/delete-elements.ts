@@ -1,7 +1,7 @@
-import { Command, type CommandResult } from "@/lib/commands/base-command";
-import type { TimelineTrack } from "@/lib/timeline";
+import { Command } from "@/lib/commands/base-command";
+import type { TimelineTrack } from "@/types/timeline";
 import { EditorCore } from "@/core";
-import { rippleShiftElements } from "@/lib/timeline";
+import { isMainTrack, rippleShiftElements } from "@/lib/timeline";
 
 export class DeleteElementsCommand extends Command {
 	private savedState: TimelineTrack[] | null = null;
@@ -20,11 +20,12 @@ export class DeleteElementsCommand extends Command {
 		this.rippleEnabled = rippleEnabled;
 	}
 
-	execute(): CommandResult {
+	execute(): void {
 		const editor = EditorCore.getInstance();
 		this.savedState = editor.timeline.getTracks();
 
-		const updatedTracks = this.savedState.map((track) => {
+		const updatedTracks = this.savedState
+			.map((track) => {
 				const elementsToDeleteOnTrack = this.elements.filter(
 					(target) => target.trackId === track.id,
 				);
@@ -63,13 +64,10 @@ export class DeleteElementsCommand extends Command {
 				}
 
 				return { ...track, elements } as typeof track;
-			});
+			})
+			.filter((track) => track.elements.length > 0 || isMainTrack(track));
 
 		editor.timeline.updateTracks(updatedTracks);
-
-		return {
-			select: [],
-		};
 	}
 
 	undo(): void {

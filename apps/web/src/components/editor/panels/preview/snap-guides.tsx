@@ -1,25 +1,43 @@
 "use client";
 
-import { usePreviewViewport } from "@/components/editor/panels/preview/preview-viewport";
+import { useEditor } from "@/hooks/use-editor";
 import type { SnapLine } from "@/lib/preview/preview-snap";
+import { positionToOverlay } from "@/lib/preview/preview-coords";
 
-export function SnapGuides({ lines }: { lines: SnapLine[] }) {
-	const viewport = usePreviewViewport();
+export function SnapGuides({
+	lines,
+	canvasRef,
+	containerRef,
+}: {
+	lines: SnapLine[];
+	canvasRef: React.RefObject<HTMLCanvasElement | null>;
+	containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+	const editor = useEditor();
+	const canvasSize = editor.project.getActive().settings.canvasSize;
+	const canvasRect = canvasRef.current?.getBoundingClientRect();
+	const containerRect = containerRef.current?.getBoundingClientRect();
 
-	if (lines.length === 0) {
+	if (!canvasRect || !containerRect || lines.length === 0) {
 		return null;
 	}
 
 	const toOverlayX = (logicalX: number) =>
-		viewport.positionToOverlay({
+		positionToOverlay({
 			positionX: logicalX,
 			positionY: 0,
+			canvasRect,
+			containerRect,
+			canvasSize,
 		}).x;
 
 	const toOverlayY = (logicalY: number) =>
-		viewport.positionToOverlay({
+		positionToOverlay({
 			positionX: 0,
 			positionY: logicalY,
+			canvasRect,
+			containerRect,
+			canvasSize,
 		}).y;
 
 	return (

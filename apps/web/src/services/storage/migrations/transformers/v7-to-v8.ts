@@ -78,17 +78,38 @@ function migrateTrackElements({ track }: { track: unknown }): unknown {
 
 function migrateElement({ element }: { element: unknown }): unknown {
 	if (!isRecord(element)) return element;
-	if (element.type !== "video" && element.type !== "audio") return element;
-	if (typeof element.sourceDuration === "number") return element;
-
-	const trimStart = typeof element.trimStart === "number" ? element.trimStart : 0;
-	const duration = typeof element.duration === "number" ? element.duration : 0;
-	const trimEnd = typeof element.trimEnd === "number" ? element.trimEnd : 0;
-
-	return {
-		...element,
-		sourceDuration: trimStart + duration + trimEnd,
-	};
+	
+	// 为视觉元素添加默认的 transform 字段
+	if (element.type === "video" || element.type === "image" || element.type === "sticker") {
+		const hasTransform = typeof element.transform === "object" && element.transform !== null;
+		if (!hasTransform) {
+			// 添加默认的 transform
+			return {
+				...element,
+				transform: {
+					scale: 1,
+					position: { x: 0, y: 0 },
+					rotate: 0,
+				},
+			};
+		}
+	}
+	
+	// 为 audio 元素添加 sourceDuration（原有的迁移逻辑）
+	if (element.type === "audio") {
+		const trimStart = typeof element.trimStart === "number" ? element.trimStart : 0;
+		const duration = typeof element.duration === "number" ? element.duration : 0;
+		const trimEnd = typeof element.trimEnd === "number" ? element.trimEnd : 0;
+		
+		if (typeof element.sourceDuration !== "number") {
+			return {
+				...element,
+				sourceDuration: trimStart + duration + trimEnd,
+			};
+		}
+	}
+	
+	return element;
 }
 
 function isV8Project({ project }: { project: ProjectRecord }): boolean {

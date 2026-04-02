@@ -7,15 +7,15 @@ import {
 } from "react";
 import { useEditor } from "@/hooks/use-editor";
 import { useShiftKey } from "@/hooks/use-shift-key";
-import { TIMELINE_DRAG_THRESHOLD_PX } from "@/components/editor/panels/timeline/interaction";
-import { snapTimeToFrame } from "opencut-wasm";
+import { DRAG_THRESHOLD_PX } from "@/constants/timeline-constants";
+import { snapTimeToFrame } from "@/lib/time";
 import { getMouseTimeFromClientX } from "@/lib/timeline/drag-utils";
 import {
 	findSnapPoints,
 	snapToNearestPoint,
 	type SnapPoint,
 } from "@/lib/timeline/snap-utils";
-import type { Bookmark } from "@/lib/timeline";
+import type { Bookmark } from "@/types/timeline";
 
 export interface BookmarkDragState {
 	isDragging: boolean;
@@ -131,10 +131,7 @@ export function useBookmarkDrag({
 				const deltaX = Math.abs(event.clientX - startMouseX);
 				const deltaY = Math.abs(event.clientY - startMouseY);
 
-				if (
-					deltaX <= TIMELINE_DRAG_THRESHOLD_PX &&
-					deltaY <= TIMELINE_DRAG_THRESHOLD_PX
-				) {
+				if (deltaX <= DRAG_THRESHOLD_PX && deltaY <= DRAG_THRESHOLD_PX) {
 					return;
 				}
 
@@ -148,7 +145,10 @@ export function useBookmarkDrag({
 					zoomLevel,
 					scrollLeft,
 				});
-			const frameSnappedTime = snapTimeToFrame({ time: Math.max(0, Math.min(mouseTime, duration)), fps: activeProject.settings.fps });
+				const frameSnappedTime = snapTimeToFrame({
+					time: Math.max(0, Math.min(mouseTime, duration)),
+					fps: activeProject.settings.fps,
+				});
 				const { snappedTime: initialTime } = getSnapResult({
 					rawTime: frameSnappedTime,
 					excludeBookmarkTime: bookmarkTime,
@@ -176,7 +176,10 @@ export function useBookmarkDrag({
 				scrollLeft,
 			});
 			const clampedTime = Math.max(0, Math.min(mouseTime, duration));
-			const frameSnappedTime = snapTimeToFrame({ time: clampedTime, fps: activeProject.settings.fps });
+			const frameSnappedTime = snapTimeToFrame({
+				time: clampedTime,
+				fps: activeProject.settings.fps,
+			});
 			const snapResult = getSnapResult({
 				rawTime: frameSnappedTime,
 				excludeBookmarkTime: dragState.bookmarkTime,

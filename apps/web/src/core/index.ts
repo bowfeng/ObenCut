@@ -9,14 +9,13 @@ import { SaveManager } from "./managers/save-manager";
 import { AudioManager } from "./managers/audio-manager";
 import { SelectionManager } from "./managers/selection-manager";
 import { registerDefaultEffects } from "@/lib/effects";
-import { registerDefaultMasks } from "@/lib/masks";
-import { isMainTrack } from "@/lib/timeline/placement";
 
 export class EditorCore {
 	private static instance: EditorCore | null = null;
-	public readonly timeline: TimelineManager;
+
 	public readonly command: CommandManager;
 	public readonly playback: PlaybackManager;
+	public readonly timeline: TimelineManager;
 	public readonly scenes: ScenesManager;
 	public readonly project: ProjectManager;
 	public readonly media: MediaManager;
@@ -27,10 +26,9 @@ export class EditorCore {
 
 	private constructor() {
 		registerDefaultEffects();
-		registerDefaultMasks();
-		this.command = new CommandManager(this);
-		this.timeline = new TimelineManager(this);
+		this.command = new CommandManager();
 		this.playback = new PlaybackManager(this);
+		this.timeline = new TimelineManager(this);
 		this.scenes = new ScenesManager(this);
 		this.project = new ProjectManager(this);
 		this.media = new MediaManager(this);
@@ -38,15 +36,6 @@ export class EditorCore {
 		this.save = new SaveManager(this);
 		this.audio = new AudioManager(this);
 		this.selection = new SelectionManager(this);
-		this.command.registerReactor(() => {
-			const tracks = this.timeline.getTracks();
-			const prunedTracks = tracks.filter(
-				(track) => track.elements.length > 0 || isMainTrack(track),
-			);
-			if (prunedTracks.length !== tracks.length) {
-				this.timeline.updateTracks(prunedTracks);
-			}
-		});
 		this.save.start();
 	}
 

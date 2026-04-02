@@ -1,15 +1,14 @@
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { useEditor } from "@/hooks/use-editor";
 import { processMediaAssets } from "@/lib/media/processing";
-import { showMediaUploadToast } from "@/lib/media/upload-toast";
-import { invokeAction } from "@/lib/actions";
 import { buildElementFromMedia } from "@/lib/timeline/element-utils";
 import { AddMediaAssetCommand } from "@/lib/commands/media";
 import { InsertElementCommand } from "@/lib/commands/timeline";
 import { BatchCommand } from "@/lib/commands";
-import { DEFAULT_NEW_ELEMENT_DURATION_SECONDS } from "@/lib/timeline/creation";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { isTypableDOMElement } from "@/utils/browser";
-import type { MediaType } from "@/lib/media/types";
+import type { MediaType } from "@/types/assets";
 
 const MEDIA_MIME_PREFIXES: MediaType[] = ["image", "video", "audio"];
 
@@ -41,7 +40,6 @@ export function usePasteMedia() {
 	useEffect(() => {
 		const handlePaste = async (event: ClipboardEvent) => {
 			const activeElement = document.activeElement as HTMLElement;
-
 			if (activeElement && isTypableDOMElement({ element: activeElement })) {
 				return;
 			}
@@ -49,11 +47,7 @@ export function usePasteMedia() {
 			const files = extractMediaFilesFromClipboard({
 				clipboardData: event.clipboardData,
 			});
-			if (files.length === 0) {
-				event.preventDefault();
-				invokeAction("paste-copied");
-				return;
-			}
+			if (files.length === 0) return;
 
 			event.preventDefault();
 
@@ -61,50 +55,41 @@ export function usePasteMedia() {
 			if (!activeProject) return;
 
 			try {
-				await showMediaUploadToast({
-					filesCount: files.length,
-					promise: async () => {
-						const processedAssets = await processMediaAssets({ files });
-						const startTime = editor.playback.getCurrentTime();
+				const processedAssets = await processMediaAssets({ files });
+				const startTime = editor.playback.getCurrentTime();
 
-						for (const asset of processedAssets) {
-							const addMediaCmd = new AddMediaAssetCommand(
-								activeProject.metadata.id,
-								asset,
-							);
-							const assetId = addMediaCmd.getAssetId();
-							const duration =
-								asset.duration ?? DEFAULT_NEW_ELEMENT_DURATION_SECONDS;
-							const trackType = asset.type === "audio" ? "audio" : "video";
+				for (const asset of processedAssets) {
+					const addMediaCmd = new AddMediaAssetCommand(
+						activeProject.metadata.id,
+						asset,
+					);
+					const assetId = addMediaCmd.getAssetId();
+					const duration =
+						asset.duration ?? TIMELINE_CONSTANTS.DEFAULT_ELEMENT_DURATION;
+					const trackType = asset.type === "audio" ? "audio" : "video";
 
-							const element = buildElementFromMedia({
-								mediaId: assetId,
-								mediaType: asset.type,
-								name: asset.name,
-								duration,
-								startTime,
-								buffer:
-									asset.type === "audio"
-										? new AudioBuffer({ length: 1, sampleRate: 44100 })
-										: undefined,
-							});
+					const element = buildElementFromMedia({
+						mediaId: assetId,
+						mediaType: asset.type,
+						name: asset.name,
+						duration,
+						startTime,
+						buffer:
+							asset.type === "audio"
+								? new AudioBuffer({ length: 1, sampleRate: 44100 })
+								: undefined,
+					});
 
-							const insertCmd = new InsertElementCommand({
-								element,
-								placement: { mode: "auto", trackType },
-							});
-							const batchCmd = new BatchCommand([addMediaCmd, insertCmd]);
-							editor.command.execute({ command: batchCmd });
-						}
-
-						return {
-							uploadedCount: processedAssets.length,
-							assetNames: processedAssets.map((asset) => asset.name),
-						};
-					},
-				});
+					const insertCmd = new InsertElementCommand({
+						element,
+						placement: { mode: "auto", trackType },
+					});
+					const batchCmd = new BatchCommand([addMediaCmd, insertCmd]);
+					editor.command.execute({ command: batchCmd });
+				}
 			} catch (error) {
 				console.error("Failed to paste media:", error);
+				toast.error("Failed to paste media");
 			}
 		};
 

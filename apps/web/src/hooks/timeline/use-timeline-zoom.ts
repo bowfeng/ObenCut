@@ -7,14 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import {
-	TIMELINE_ZOOM_ANCHOR_PLAYHEAD_THRESHOLD,
-} from "@/components/editor/panels/timeline/interaction";
-import {
-	TIMELINE_ZOOM_MAX,
-	TIMELINE_ZOOM_MIN,
-	BASE_TIMELINE_PIXELS_PER_SECOND,
-} from "@/lib/timeline/scale";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useEditor } from "@/hooks/use-editor";
 import { zoomToSlider } from "@/lib/timeline/zoom-utils";
 
@@ -37,7 +30,7 @@ interface UseTimelineZoomReturn {
 
 export function useTimelineZoom({
 	containerRef,
-	minZoom = TIMELINE_ZOOM_MIN,
+	minZoom = TIMELINE_CONSTANTS.ZOOM_MIN,
 	initialZoom,
 	initialScrollLeft,
 	initialPlayheadTime,
@@ -56,7 +49,7 @@ export function useTimelineZoom({
 			hasInitializedRef.current = true;
 			return Math.max(
 				minZoom,
-					Math.min(TIMELINE_ZOOM_MAX, initialZoom),
+				Math.min(TIMELINE_CONSTANTS.ZOOM_MAX, initialZoom),
 			);
 		}
 		return minZoom;
@@ -88,22 +81,18 @@ export function useTimelineZoom({
 				return;
 			}
 
-		// pinch-zoom (ctrl/meta + wheel)
-		if (isZoomGesture) {
-			const normalizedDelta =
-				event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
-			const cappedDelta =
-				Math.sign(normalizedDelta) * Math.min(Math.abs(normalizedDelta), 30);
-			const zoomFactor = Math.exp(-cappedDelta / 300);
-			setZoomLevel((prev) => {
-				const nextZoom = Math.max(
-					minZoom,
-					Math.min(TIMELINE_ZOOM_MAX, prev * zoomFactor),
-				);
-				return nextZoom;
-			});
-			return;
-		}
+			// pinch-zoom (ctrl/meta + wheel)
+			if (isZoomGesture) {
+				const zoomMultiplier = event.deltaY > 0 ? 1 / 1.1 : 1.1;
+				setZoomLevel((prev) => {
+					const nextZoom = Math.max(
+						minZoom,
+						Math.min(TIMELINE_CONSTANTS.ZOOM_MAX, prev * zoomMultiplier),
+					);
+					return nextZoom;
+				});
+				return;
+			}
 		},
 		[minZoom, setZoomLevel],
 	);
@@ -112,7 +101,7 @@ export function useTimelineZoom({
 		if (initialZoom !== undefined && !hasInitializedRef.current) {
 			hasInitializedRef.current = true;
 			setZoomLevel(
-				Math.max(minZoom, Math.min(TIMELINE_ZOOM_MAX, initialZoom)),
+				Math.max(minZoom, Math.min(TIMELINE_CONSTANTS.ZOOM_MAX, initialZoom)),
 			);
 			return;
 		}
@@ -133,7 +122,7 @@ export function useTimelineZoom({
 						: zoomLevelOrUpdater;
 				const clampedZoom = Math.max(
 					minZoom,
-					Math.min(TIMELINE_ZOOM_MAX, nextZoom),
+					Math.min(TIMELINE_CONSTANTS.ZOOM_MAX, nextZoom),
 				);
 				return clampedZoom;
 			});
@@ -160,12 +149,12 @@ export function useTimelineZoom({
 		});
 		const isCrossingThresholdUp =
 			previousSliderPercent <
-				TIMELINE_ZOOM_ANCHOR_PLAYHEAD_THRESHOLD &&
-			sliderPercent >= TIMELINE_ZOOM_ANCHOR_PLAYHEAD_THRESHOLD;
+				TIMELINE_CONSTANTS.ZOOM_ANCHOR_PLAYHEAD_THRESHOLD &&
+			sliderPercent >= TIMELINE_CONSTANTS.ZOOM_ANCHOR_PLAYHEAD_THRESHOLD;
 		const isCrossingThresholdDown =
 			previousSliderPercent >=
-				TIMELINE_ZOOM_ANCHOR_PLAYHEAD_THRESHOLD &&
-			sliderPercent < TIMELINE_ZOOM_ANCHOR_PLAYHEAD_THRESHOLD;
+				TIMELINE_CONSTANTS.ZOOM_ANCHOR_PLAYHEAD_THRESHOLD &&
+			sliderPercent < TIMELINE_CONSTANTS.ZOOM_ANCHOR_PLAYHEAD_THRESHOLD;
 
 		const syncScroll = (scrollLeft: number) => {
 			scrollElement.scrollLeft = scrollLeft;
@@ -185,11 +174,11 @@ export function useTimelineZoom({
 			isInPlayheadAnchorModeRef.current = true;
 		}
 
-		if (sliderPercent >= TIMELINE_ZOOM_ANCHOR_PLAYHEAD_THRESHOLD) {
+		if (sliderPercent >= TIMELINE_CONSTANTS.ZOOM_ANCHOR_PLAYHEAD_THRESHOLD) {
 			const playheadPixelsBefore =
-				playheadTime * BASE_TIMELINE_PIXELS_PER_SECOND * previousZoom;
+				playheadTime * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * previousZoom;
 			const playheadPixelsAfter =
-				playheadTime * BASE_TIMELINE_PIXELS_PER_SECOND * zoomLevel;
+				playheadTime * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 
 			const viewportOffset = playheadPixelsBefore - currentScrollLeft;
 			const newScrollLeft = playheadPixelsAfter - viewportOffset;

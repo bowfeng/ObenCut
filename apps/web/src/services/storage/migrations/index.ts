@@ -8,22 +8,10 @@ import { V5toV6Migration } from "./v5-to-v6";
 import { V6toV7Migration } from "./v6-to-v7";
 import { V7toV8Migration } from "./v7-to-v8";
 import { V8toV9Migration } from "./v8-to-v9";
-import { V9toV10Migration } from "./v9-to-v10";
-import { V10toV11Migration } from "./v10-to-v11";
-import { V11toV12Migration } from "./v11-to-v12";
-import { V12toV13Migration } from "./v12-to-v13";
-import { V13toV14Migration } from "./v13-to-v14";
-import { V14toV15Migration } from "./v14-to-v15";
-import { V15toV16Migration } from "./v15-to-v16";
-import { V16toV17Migration } from "./v16-to-v17";
-import { V17toV18Migration } from "./v17-to-v18";
-import { V18toV19Migration } from "./v18-to-v19";
-import { V19toV20Migration } from "./v19-to-v20";
-import { V20toV21Migration } from "./v20-to-v21";
 export { runStorageMigrations } from "./runner";
 export type { MigrationProgress } from "./runner";
 
-export const CURRENT_PROJECT_VERSION = 21;
+export const CURRENT_PROJECT_VERSION = 9;
 
 export const migrations = [
 	new V0toV1Migration(),
@@ -35,16 +23,4 @@ export const migrations = [
 	new V6toV7Migration(),
 	new V7toV8Migration(),
 	new V8toV9Migration(),
-	new V9toV10Migration(),
-	new V10toV11Migration(),
-	new V11toV12Migration(),
-	new V12toV13Migration(),
-	new V13toV14Migration(),
-	new V14toV15Migration(),
-	new V15toV16Migration(),
-	new V16toV17Migration(),
-	new V17toV18Migration(),
-	new V18toV19Migration(),
-	new V19toV20Migration(),
-	new V20toV21Migration(),
 ];

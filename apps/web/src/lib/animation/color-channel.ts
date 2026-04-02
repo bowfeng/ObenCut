@@ -2,7 +2,7 @@ import type {
 	AnimationPropertyPath,
 	ColorAnimationChannel,
 	ElementAnimations,
-} from "@/lib/animation/types";
+} from "@/types/animation";
 
 export function getColorChannelForPath({
 	animations,

@@ -1,12 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
-import { PanelView } from "@/components/editor/panels/assets/views/base-panel";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { toast } from "sonner";
+import { PanelView } from "@/components/editor/panels/assets/views/base-view";
 import { MediaDragOverlay } from "@/components/editor/panels/assets/drag-overlay";
 import { DraggableItem } from "@/components/editor/panels/assets/draggable-item";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -25,18 +25,11 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DEFAULT_NEW_ELEMENT_DURATION_SECONDS } from "@/lib/timeline/creation";
+import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useEditor } from "@/hooks/use-editor";
 import { useFileUpload } from "@/hooks/use-file-upload";
-import { invokeAction } from "@/lib/actions";
+import { useRevealItem } from "@/hooks/use-reveal-item";
 import { processMediaAssets } from "@/lib/media/processing";
-import { showMediaUploadToast } from "@/lib/media/upload-toast";
-import {
-	SelectableItem,
-	SelectableSurface,
-	useSelection,
-	useSelectionScope,
-} from "@/lib/selection";
 import { buildElementFromMedia } from "@/lib/timeline/element-utils";
 import {
 	type MediaSortKey,
@@ -44,8 +37,7 @@ import {
 	type MediaViewMode,
 	useAssetsPanelStore,
 } from "@/stores/assets-panel-store";
-import { MASKABLE_ELEMENT_TYPES } from "@/lib/timeline";
-import type { MediaAsset } from "@/lib/media/types";
+import type { MediaAsset } from "@/types/assets";
 import { cn } from "@/utils/ui";
 import {
 	CloudUploadIcon,
@@ -60,8 +52,8 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 
 export function MediaView() {
 	const editor = useEditor();
-	const mediaFiles = useEditor((e) => e.media.getAssets());
-	const activeProject = useEditor((e) => e.project.getActive());
+	const mediaFiles = editor.media.getAssets();
+	const activeProject = editor.project.getActive();
 
 	const {
 		mediaViewMode,
@@ -72,11 +64,15 @@ export function MediaView() {
 		mediaSortOrder,
 		setMediaSort,
 	} = useAssetsPanelStore();
+	const { highlightedId, registerElement } = useRevealItem(
+		highlightMediaId,
+		clearHighlight,
+	);
 
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [progress, setProgress] = useState(0);
 
-	const processFiles = async ({ files }: { files: File[] }) => {
+	const processFiles = async ({ files }: { files: FileList }) => {
 		if (!files || files.length === 0) return;
 		if (!activeProject) {
 			toast.error("No active project");
@@ -86,28 +82,20 @@ export function MediaView() {
 		setIsProcessing(true);
 		setProgress(0);
 		try {
-			await showMediaUploadToast({
-				filesCount: files.length,
-				promise: async () => {
-					const processedAssets = await processMediaAssets({
-						files,
-						onProgress: (progress: { progress: number }) =>
-							setProgress(progress.progress),
-					});
-					for (const asset of processedAssets) {
-						await editor.media.addMediaAsset({
-							projectId: activeProject.metadata.id,
-							asset,
-						});
-					}
-					return {
-						uploadedCount: processedAssets.length,
-						assetNames: processedAssets.map((asset) => asset.name),
-					};
-				},
+			const processedAssets = await processMediaAssets({
+				files,
+				onProgress: (progress: { progress: number }) =>
+					setProgress(progress.progress),
 			});
+			for (const asset of processedAssets) {
+				await editor.media.addMediaAsset({
+					projectId: activeProject.metadata.id,
+					asset,
+				});
+			}
 		} catch (error) {
 			console.error("Error processing files:", error);
+			toast.error("Failed to process files");
 		} finally {
 			setIsProcessing(false);
 			setProgress(0);
@@ -121,18 +109,23 @@ export function MediaView() {
 			onFilesSelected: (files) => processFiles({ files }),
 		});
 
-	const handleRemove = ({
+	const handleRemove = async ({
 		event,
-		ids,
+		id,
 	}: {
 		event: React.MouseEvent;
-		ids: string[];
+		id: string;
 	}) => {
 		event.stopPropagation();
 
-		invokeAction("remove-media-assets", {
+		if (!activeProject) {
+			toast.error("No active project");
+			return;
+		}
+
+		await editor.media.removeMediaAsset({
 			projectId: activeProject.metadata.id,
-			assetIds: ids,
+			id,
 		});
 	};
 
@@ -179,9 +172,6 @@ export function MediaView() {
 
 		return filtered;
 	}, [mediaFiles, mediaSortBy, mediaSortOrder]);
-	const orderedMediaIds = useMemo(() => {
-		return filteredMediaItems.map((item) => item.id);
-	}, [filteredMediaItems]);
 
 	return (
 		<>
@@ -201,7 +191,6 @@ export function MediaView() {
 					/>
 				}
 				className={cn(isDragOver && "bg-accent/30")}
-				contentClassName="h-full"
 				{...dragProps}
 			>
 				{isDragOver || filteredMediaItems.length === 0 ? (
@@ -212,38 +201,29 @@ export function MediaView() {
 						onClick={openFilePicker}
 					/>
 				) : (
-					<SelectableSurface
-						ariaLabel="Assets"
-						orderedIds={orderedMediaIds}
-						revealId={highlightMediaId}
-						onRevealComplete={clearHighlight}
-					>
-						<MediaScopeRegistrar />
-						<MediaItemList
-							items={filteredMediaItems}
-							mode={mediaViewMode}
-							onRemove={handleRemove}
-						/>
-					</SelectableSurface>
+					<MediaItemList
+						items={filteredMediaItems}
+						mode={mediaViewMode}
+						onRemove={handleRemove}
+						highlightedId={highlightedId}
+						registerElement={registerElement}
+					/>
 				)}
 			</PanelView>
 		</>
 	);
 }
 
-function MediaScopeRegistrar() {
-	useSelectionScope();
-	return null;
-}
-
 function MediaAssetDraggable({
 	item,
 	preview,
+	isHighlighted,
 	variant,
 	isRounded,
 }: {
 	item: MediaAsset;
 	preview: React.ReactNode;
+	isHighlighted: boolean;
 	variant: "card" | "compact";
 	isRounded?: boolean;
 }) {
@@ -257,7 +237,7 @@ function MediaAssetDraggable({
 		startTime: number;
 	}) => {
 		const duration =
-			asset.duration ?? DEFAULT_NEW_ELEMENT_DURATION_SECONDS;
+			asset.duration ?? TIMELINE_CONSTANTS.DEFAULT_ELEMENT_DURATION;
 		const element = buildElementFromMedia({
 			mediaId: asset.id,
 			mediaType: asset.type,
@@ -281,7 +261,7 @@ function MediaAssetDraggable({
 				mediaType: item.type,
 				name: item.name,
 				...(item.type !== "audio" && {
-					targetElementTypes: [...MASKABLE_ELEMENT_TYPES],
+					targetElementTypes: ["video", "image"] as const,
 				}),
 			}}
 			shouldShowPlusOnDrag={false}
@@ -290,6 +270,7 @@ function MediaAssetDraggable({
 			}
 			variant={variant}
 			isRounded={isRounded}
+			isHighlighted={isHighlighted}
 		/>
 	);
 }
@@ -301,33 +282,107 @@ function MediaItemWithContextMenu({
 }: {
 	item: MediaAsset;
 	children: React.ReactNode;
-	onRemove: ({
-		event,
-		ids,
-	}: {
-		event: React.MouseEvent;
-		ids: string[];
-	}) => void;
+	onRemove: ({ event, id }: { event: React.MouseEvent; id: string }) => void;
 }) {
-	const { isSelected, selectedIds } = useSelection();
-	const idsToDelete = isSelected(item.id) ? selectedIds : [item.id];
-	const deleteLabel =
-		idsToDelete.length > 1 ? `Delete ${idsToDelete.length} items` : "Delete";
+	const editor = useEditor();
+	const activeProject = editor.project.getActive();
+	const [isRenaming, setIsRenaming] = useState(false);
+	const [newName, setNewName] = useState(item.name);
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (isRenaming && inputRef.current) {
+			inputRef.current.focus();
+			inputRef.current.select();
+		}
+	}, [isRenaming]);
+
+	const handleRename = async () => {
+		if (!activeProject || !newName.trim()) {
+			setIsRenaming(false);
+			return;
+		}
+
+		try {
+			await editor.media.updateMediaAsset({
+				projectId: activeProject.metadata.id,
+				id: item.id,
+				name: newName.trim(),
+			});
+			setIsRenaming(false);
+			toast.success("Media renamed", {
+				description: `"${newName.trim()}"`,
+			});
+		} catch (error) {
+			toast.error("Failed to rename media", {
+				description: error instanceof Error ? error.message : "Unknown error",
+			});
+			setIsRenaming(false);
+		}
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Enter") {
+			handleRename();
+		} else if (e.key === "Escape") {
+			setIsRenaming(false);
+			setNewName(item.name);
+		}
+	};
 
 	return (
 		<ContextMenu>
-			<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+			<ContextMenuTrigger>{children}</ContextMenuTrigger>
 			<ContextMenuContent>
+				<ContextMenuItem onClick={() => setIsRenaming(true)}>
+					Rename
+				</ContextMenuItem>
 				<ContextMenuItem>Export clips</ContextMenuItem>
 				<ContextMenuItem
 					variant="destructive"
-					onClick={(event: React.MouseEvent<HTMLDivElement>) =>
-						onRemove({ event, ids: idsToDelete })
-					}
+					onClick={(event) => onRemove({ event, id: item.id })}
 				>
-					{deleteLabel}
+					Delete
 				</ContextMenuItem>
 			</ContextMenuContent>
+			{isRenaming && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+					onClick={() => setIsRenaming(false)}
+				>
+					<div
+						className="w-80 rounded-lg bg-background p-4 shadow-lg"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<h3 className="mb-3 font-medium">Rename Media</h3>
+						<input
+							ref={inputRef}
+							type="text"
+							value={newName}
+							onChange={(e) => setNewName(e.target.value)}
+							onKeyDown={handleKeyDown}
+							className="w-full rounded border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+							placeholder="Enter new name"
+							maxLength={200}
+						/>
+						<div className="mt-3 flex justify-end gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									setIsRenaming(false);
+									setNewName(item.name);
+								}}
+							>
+								Cancel
+							</Button>
+							<Button size="sm" onClick={handleRename}>
+								Rename
+							</Button>
+						</div>
+					</div>
+				</div>
+			)}
 		</ContextMenu>
 	);
 }
@@ -336,29 +391,27 @@ function MediaItemList({
 	items,
 	mode,
 	onRemove,
+	highlightedId,
+	registerElement,
 }: {
 	items: MediaAsset[];
 	mode: MediaViewMode;
-	onRemove: ({
-		event,
-		ids,
-	}: {
-		event: React.MouseEvent;
-		ids: string[];
-	}) => void;
+	onRemove: ({ event, id }: { event: React.MouseEvent; id: string }) => void;
+	highlightedId: string | null;
+	registerElement: (id: string, element: HTMLElement | null) => void;
 }) {
 	const isGrid = mode === "grid";
 
 	return (
 		<div
-			className={cn(isGrid ? "grid gap-4" : "flex flex-col gap-1.5")}
+			className={cn(isGrid ? "grid gap-2" : "flex flex-col gap-1")}
 			style={
-				isGrid ? { gridTemplateColumns: "repeat(auto-fill, 7rem)" } : undefined
+				isGrid ? { gridTemplateColumns: "repeat(auto-fill, 160px)" } : undefined
 			}
 		>
 			{items.map((item) => (
-				<MediaItemWithContextMenu item={item} onRemove={onRemove} key={item.id}>
-					<SelectableItem className={cn(!isGrid && "w-full")} id={item.id}>
+				<div key={item.id} ref={(element) => registerElement(item.id, element)}>
+					<MediaItemWithContextMenu item={item} onRemove={onRemove}>
 						<MediaAssetDraggable
 							item={item}
 							preview={
@@ -369,15 +422,16 @@ function MediaItemList({
 							}
 							variant={isGrid ? "card" : "compact"}
 							isRounded={isGrid ? false : undefined}
+							isHighlighted={highlightedId === item.id}
 						/>
-					</SelectableItem>
-				</MediaItemWithContextMenu>
+					</MediaItemWithContextMenu>
+				</div>
 			))}
 		</div>
 	);
 }
 
-function formatDuration({ duration }: { duration: number }) {
+export function formatDuration({ duration }: { duration: number }) {
 	const min = Math.floor(duration / 60);
 	const sec = Math.floor(duration % 60);
 	return `${min}:${sec.toString().padStart(2, "0")}`;
@@ -438,10 +492,26 @@ function MediaPreview({
 	const shouldShowDurationBadge = variant === "grid";
 
 	if (item.type === "image") {
+		// Prefer thumbnailUrl for images as it's more likely to be a persistent Data URL
+		// (e.g., from AI generation), while url is a temporary object URL
+		const src = item.thumbnailUrl ?? item.url;
+		
+		// Don't render Image if src is empty to avoid Next.js error
+		if (!src) {
+			return (
+				<MediaTypePlaceholder
+					icon={Image02Icon}
+					label="Image"
+					duration={item.duration}
+					variant="muted"
+				/>
+			);
+		}
+		
 		return (
-			<div className="relative flex size-full items-center justify-center bg-muted">
+			<div className="relative flex size-full items-center justify-center">
 				<Image
-					src={item.url ?? ""}
+					src={src}
 					alt={item.name}
 					fill
 					sizes="100vw"

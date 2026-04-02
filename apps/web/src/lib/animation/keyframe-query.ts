@@ -1,10 +1,9 @@
 import { TIME_EPSILON_SECONDS } from "@/constants/animation-constants";
 import type {
-	AnimationPath,
+	AnimationPropertyPath,
 	ElementAnimations,
 	ElementKeyframe,
-} from "@/lib/animation/types";
-import { isAnimationPath } from "./target-resolver";
+} from "@/types/animation";
 
 export function getElementKeyframes({
 	animations,
@@ -17,16 +16,12 @@ export function getElementKeyframes({
 
 	return Object.entries(animations.channels).flatMap(
 		([propertyPath, channel]) => {
-			if (
-				!channel ||
-				channel.keyframes.length === 0 ||
-				!isAnimationPath(propertyPath)
-			) {
+			if (!channel || channel.keyframes.length === 0) {
 				return [];
 			}
 
 			return channel.keyframes.map((keyframe) => ({
-				propertyPath,
+				propertyPath: propertyPath as AnimationPropertyPath,
 				id: keyframe.id,
 				time: keyframe.time,
 				value: keyframe.value,
@@ -41,7 +36,7 @@ export function hasKeyframesForPath({
 	propertyPath,
 }: {
 	animations: ElementAnimations | undefined;
-	propertyPath: AnimationPath;
+	propertyPath: AnimationPropertyPath;
 }): boolean {
 	const channel = animations?.channels[propertyPath];
 	return Boolean(channel && channel.keyframes.length > 0);
@@ -53,7 +48,7 @@ export function getKeyframeAtTime({
 	time,
 }: {
 	animations: ElementAnimations | undefined;
-	propertyPath: AnimationPath;
+	propertyPath: AnimationPropertyPath;
 	time: number;
 }): ElementKeyframe | null {
 	const channel = animations?.channels[propertyPath];

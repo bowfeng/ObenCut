@@ -17,7 +17,6 @@ export class VideoNode extends VisualNode<VideoNodeParams> {
 		}
 
 		const videoTime = this.getSourceLocalTime({ time });
-
 		const frame = await videoCache.getFrameAt({
 			mediaId: this.params.mediaId,
 			file: this.params.file,

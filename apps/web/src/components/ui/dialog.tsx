@@ -4,22 +4,8 @@ import * as React from "react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { X } from "lucide-react";
 import { cn } from "@/utils/ui";
-import { useOverlayOpenChange } from "./use-overlay-open-change";
 
-function Dialog({
-	open,
-	onOpenChange,
-	...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-	const handleOpenChange = useOverlayOpenChange({
-		source: "dialog",
-		open,
-		onOpenChange,
-	});
-	return (
-		<DialogPrimitive.Root open={open} onOpenChange={handleOpenChange} {...props} />
-	);
-}
+const Dialog = DialogPrimitive.Root;
 
 const DialogTrigger = DialogPrimitive.Trigger;
 

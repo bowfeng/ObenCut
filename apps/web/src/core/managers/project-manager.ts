@@ -6,15 +6,17 @@ import type {
 	TProjectSortOption,
 	TProjectSettings,
 	TTimelineViewState,
-} from "@/lib/project/types";
-import type { ExportOptions, ExportResult, ExportState } from "@/lib/export";
+} from "@/types/project";
+import type { ExportOptions, ExportResult, ExportState } from "@/types/export";
 import { storageService } from "@/services/storage/service";
 import { toast } from "sonner";
 import { generateUUID } from "@/utils/id";
 import { UpdateProjectSettingsCommand } from "@/lib/commands/project";
-import { DEFAULT_BACKGROUND_COLOR } from "@/lib/background/constants";
-import { DEFAULT_CANVAS_SIZE } from "@/lib/canvas/constants";
-import { DEFAULT_FPS } from "@/lib/fps/constants";
+import {
+	DEFAULT_FPS,
+	DEFAULT_CANVAS_SIZE,
+	DEFAULT_COLOR,
+} from "@/constants/project-constants";
 import { buildDefaultScene, getProjectDurationFromScenes } from "@/lib/scenes";
 import { buildScene } from "@/services/renderer/scene-builder";
 import { CanvasRenderer } from "@/services/renderer/canvas-renderer";
@@ -24,11 +26,9 @@ import {
 	runStorageMigrations,
 	type MigrationProgress,
 } from "@/services/storage/migrations";
+import { DEFAULT_TIMELINE_VIEW_STATE } from "@/constants/timeline-constants";
 import { loadFonts } from "@/lib/fonts/google-fonts";
-import { DEFAULTS } from "@/lib/timeline/defaults";
-import { getElementFontFamilies } from "@/lib/timeline/element-utils";
-import { getRaisedProjectFpsForImportedMedia } from "@/lib/fps/utils";
-import type { MediaAsset } from "@/lib/media/types";
+import { collectFontFamilies } from "@/lib/timeline/element-utils";
 
 export interface MigrationState {
 	isMigrating: boolean;
@@ -94,12 +94,10 @@ export class ProjectManager {
 			settings: {
 				fps: DEFAULT_FPS,
 				canvasSize: DEFAULT_CANVAS_SIZE,
-				canvasSizeMode: "preset",
-				lastCustomCanvasSize: null,
 				originalCanvasSize: null,
 				background: {
 					type: "color",
-					color: DEFAULT_BACKGROUND_COLOR,
+					color: DEFAULT_COLOR,
 				},
 			},
 			version: CURRENT_PROJECT_VERSION,
@@ -157,9 +155,7 @@ export class ProjectManager {
 			await this.editor.media.loadProjectMedia({ projectId: id });
 
 			const allTracks = (project.scenes ?? []).flatMap((scene) => scene.tracks);
-			await loadFonts({
-				families: getElementFontFamilies({ tracks: allTracks }),
-			});
+			await loadFonts({ families: collectFontFamilies({ tracks: allTracks }) });
 
 			if (!project.metadata.thumbnail) {
 				const didUpdateThumbnail = await this.updateThumbnailFromTimeline();
@@ -243,21 +239,14 @@ export class ProjectManager {
 			this.notify();
 		}
 
+		await this.ensureStorageMigrations();
 		try {
-			await this.ensureStorageMigrations();
-			try {
-				const metadata = await storageService.loadAllProjectsMetadata();
-				this.savedProjects = metadata;
-				this.notify();
-			} catch (error) {
-				console.error("Failed to load projects:", error);
-			} finally {
-				this.isLoading = false;
-				this.isInitialized = true;
-				this.notify();
-			}
+			const metadata = await storageService.loadAllProjectsMetadata();
+			this.savedProjects = metadata;
+			this.notify();
 		} catch (error) {
-			console.error("Failed to run migrations:", error);
+			console.error("Failed to load projects:", error);
+		} finally {
 			this.isLoading = false;
 			this.isInitialized = true;
 			this.notify();
@@ -492,23 +481,6 @@ export class ProjectManager {
 		command.execute();
 	}
 
-	ratchetFpsForImportedMedia({
-		importedAssets,
-	}: {
-		importedAssets: Array<Pick<MediaAsset, "type" | "fps">>;
-	}): number | null {
-		if (!this.active) return null;
-
-		const nextFps = getRaisedProjectFpsForImportedMedia({
-			currentFps: this.active.settings.fps,
-			importedAssets,
-		});
-		if (nextFps === null) return null;
-
-		new UpdateProjectSettingsCommand({ fps: nextFps }).execute();
-		return nextFps;
-	}
-
 	async updateThumbnail({ thumbnail }: { thumbnail: string }): Promise<void> {
 		if (!this.active) return;
 
@@ -523,12 +495,10 @@ export class ProjectManager {
 	}
 
 	async prepareExit(): Promise<void> {
-		console.log("prepareExit", this.active);
 		if (!this.active) return;
 
 		try {
 			const didUpdateThumbnail = await this.updateThumbnailFromTimeline();
-			console.log("didUpdateThumbnail", didUpdateThumbnail);
 			if (didUpdateThumbnail) {
 				await this.editor.save.flush();
 			}
@@ -601,7 +571,7 @@ export class ProjectManager {
 	}
 
 	getTimelineViewState(): TTimelineViewState {
-		return this.active?.timelineViewState ?? DEFAULTS.timeline.viewState;
+		return this.active?.timelineViewState ?? DEFAULT_TIMELINE_VIEW_STATE;
 	}
 
 	setTimelineViewState({ viewState }: { viewState: TTimelineViewState }): void {
@@ -611,7 +581,6 @@ export class ProjectManager {
 			timelineViewState: viewState ?? undefined,
 		};
 		this.editor.save.markDirty();
-		this.notify();
 	}
 
 	getSavedProjects(): TProjectMetadata[] {
@@ -646,12 +615,15 @@ export class ProjectManager {
 		const tracks = this.editor.timeline.getTracks();
 		const mediaAssets = this.editor.media.getAssets();
 		const duration = this.editor.timeline.getTotalDuration();
+
+		if (duration === 0) return false;
+
 		const { canvasSize, background } = this.active.settings;
 
 		const scene = buildScene({
 			tracks,
 			mediaAssets,
-			duration: duration || 1,
+			duration,
 			canvasSize,
 			background,
 		});
@@ -684,7 +656,7 @@ export class ProjectManager {
 		);
 
 		if (index !== -1) {
-			this.savedProjects = this.savedProjects.with(index, project.metadata);
+			this.savedProjects[index] = project.metadata;
 		} else {
 			this.savedProjects = [project.metadata, ...this.savedProjects];
 		}
@@ -693,8 +665,6 @@ export class ProjectManager {
 	}
 
 	private notify(): void {
-		this.listeners.forEach((fn) => {
-			fn();
-		});
+		this.listeners.forEach((fn) => fn());
 	}
 }

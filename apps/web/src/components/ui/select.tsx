@@ -7,22 +7,8 @@ import { ArrowUpIcon, ArrowDownIcon } from "@hugeicons/core-free-icons";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/utils/ui";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useOverlayOpenChange } from "./use-overlay-open-change";
 
-function Select({
-	open,
-	onOpenChange,
-	...props
-}: React.ComponentProps<typeof SelectPrimitive.Root>) {
-	const handleOpenChange = useOverlayOpenChange({
-		source: "select",
-		open,
-		onOpenChange,
-	});
-	return (
-		<SelectPrimitive.Root open={open} onOpenChange={handleOpenChange} {...props} />
-	);
-}
+const Select = SelectPrimitive.Root;
 
 const SelectGroup = SelectPrimitive.Group;
 

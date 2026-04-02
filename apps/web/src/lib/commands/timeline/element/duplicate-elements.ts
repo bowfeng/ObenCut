@@ -1,8 +1,11 @@
-import { Command, type CommandResult } from "@/lib/commands/base-command";
-import type { TimelineElement, TimelineTrack } from "@/lib/timeline";
+import { Command } from "@/lib/commands/base-command";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { generateUUID } from "@/utils/id";
 import { EditorCore } from "@/core";
-import { applyPlacement, resolveTrackPlacement } from "@/lib/timeline/placement";
+import {
+	buildEmptyTrack,
+	getHighestInsertIndexForTrack,
+} from "@/lib/timeline/track-utils";
 import { cloneAnimations } from "@/lib/animation";
 
 interface DuplicateElementsParams {
@@ -12,6 +15,7 @@ interface DuplicateElementsParams {
 export class DuplicateElementsCommand extends Command {
 	private duplicatedElements: { trackId: string; elementId: string }[] = [];
 	private savedState: TimelineTrack[] | null = null;
+	private previousSelection: { trackId: string; elementId: string }[] = [];
 	private elements: DuplicateElementsParams["elements"];
 
 	constructor({ elements }: DuplicateElementsParams) {
@@ -19,12 +23,13 @@ export class DuplicateElementsCommand extends Command {
 		this.elements = elements;
 	}
 
-	execute(): CommandResult | undefined {
+	execute(): void {
 		const editor = EditorCore.getInstance();
 		this.savedState = editor.timeline.getTracks();
+		this.previousSelection = editor.selection.getSelectedElements();
 		this.duplicatedElements = [];
 
-		let updatedTracks = [...this.savedState];
+		const updatedTracks = [...this.savedState];
 
 		for (const track of this.savedState) {
 			const elementsToDuplicate = this.elements.filter(
@@ -40,12 +45,22 @@ export class DuplicateElementsCommand extends Command {
 			);
 			const newTrackElements: TimelineElement[] = [];
 
+			const newTrackId = generateUUID();
+			const newTrackBase = buildEmptyTrack({
+				id: newTrackId,
+				type: track.type,
+			});
+
 			for (const element of track.elements) {
 				if (!elementIdsToDuplicate.has(element.id)) {
 					continue;
 				}
 
 				const newId = generateUUID();
+				this.duplicatedElements.push({
+					trackId: newTrackId,
+					elementId: newId,
+				});
 				newTrackElements.push(
 					buildDuplicateElement({
 						element,
@@ -55,41 +70,24 @@ export class DuplicateElementsCommand extends Command {
 				);
 			}
 
-			const placementResult = resolveTrackPlacement({
+			const newTrack = {
+				...newTrackBase,
+				elements: newTrackElements,
+			} as TimelineTrack;
+
+			const insertIndex = getHighestInsertIndexForTrack({
 				tracks: updatedTracks,
 				trackType: track.type,
-				timeSpans: [],
-				strategy: { type: "alwaysNew", position: "highest" },
 			});
-			if (!placementResult || placementResult.kind !== "newTrack") {
-				continue;
-			}
-
-			const applied = applyPlacement({
-				tracks: updatedTracks,
-				placementResult,
-				elements: newTrackElements,
-			});
-			if (!applied) {
-				continue;
-			}
-
-			updatedTracks = applied.updatedTracks;
-
-			for (const element of newTrackElements) {
-				this.duplicatedElements.push({
-					trackId: applied.targetTrackId,
-					elementId: element.id,
-				});
-			}
+			updatedTracks.splice(insertIndex, 0, newTrack);
 		}
 
 		editor.timeline.updateTracks(updatedTracks);
 
 		if (this.duplicatedElements.length > 0) {
-			return {
-				select: this.duplicatedElements,
-			};
+			editor.selection.setSelectedElements({
+				elements: this.duplicatedElements,
+			});
 		}
 	}
 
@@ -97,6 +95,9 @@ export class DuplicateElementsCommand extends Command {
 		if (this.savedState) {
 			const editor = EditorCore.getInstance();
 			editor.timeline.updateTracks(this.savedState);
+			editor.selection.setSelectedElements({
+				elements: this.previousSelection,
+			});
 		}
 	}
 

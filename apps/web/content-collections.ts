@@ -9,7 +9,6 @@ const changelog = defineCollection({
 		content: z.string(),
 		version: z.string(),
 		date: z.string(),
-		published: z.boolean().default(true),
 		title: z.string(),
 		description: z.string().optional(),
 		changes: z.array(
@@ -21,11 +20,10 @@ const changelog = defineCollection({
 	}),
 	transform: async (doc, { collection }) => {
 		const allDocs = await collection.documents();
-		const publishedDocs = allDocs.filter((entry) => entry.published !== false);
-		const sorted = [...publishedDocs].sort((a, b) =>
+		const sorted = [...allDocs].sort((a, b) =>
 			b.version.localeCompare(a.version, undefined, { numeric: true }),
 		);
-		const isLatest = doc.published !== false && sorted[0]?.version === doc.version;
+		const isLatest = sorted[0]?.version === doc.version;
 		return { ...doc, isLatest };
 	},
 });

@@ -1,14 +1,14 @@
 import type { CanvasRenderer } from "../canvas-renderer";
-import { effectsRegistry, resolveEffectPasses } from "@/lib/effects";
-import type { ParamValues } from "@/lib/params";
+import { getEffect } from "@/lib/effects";
+import type { EffectParamValues } from "@/types/effects";
 import { BaseNode } from "./base-node";
-import { gpuRenderer } from "../gpu-renderer";
+import { webglEffectRenderer } from "../webgl-effect-renderer";
 
 const TIME_EPSILON = 1e-6;
 
 export type EffectLayerNodeParams = {
 	effectType: string;
-	effectParams: ParamValues;
+	effectParams: EffectParamValues;
 	timeOffset: number;
 	duration: number;
 };
@@ -49,18 +49,19 @@ export class EffectLayerNode extends BaseNode<EffectLayerNodeParams> {
 
 		const source = renderer.context.canvas as CanvasImageSource;
 
-		const effectDefinition = effectsRegistry.get(this.params.effectType);
-
-		const passes = resolveEffectPasses({
-			definition: effectDefinition,
-			effectParams: this.params.effectParams,
-			width: renderer.width,
-			height: renderer.height,
+		const effectDefinition = getEffect({
+			effectType: this.params.effectType,
 		});
-		if (passes.length === 0) {
-			return;
-		}
-		const effectResult = gpuRenderer.applyEffect({
+
+		const passes = effectDefinition.renderer.passes.map((pass) => ({
+			fragmentShader: pass.fragmentShader,
+			uniforms: pass.uniforms({
+				effectParams: this.params.effectParams,
+				width: renderer.width,
+				height: renderer.height,
+			}),
+		}));
+		const effectResult = webglEffectRenderer.applyEffect({
 			source,
 			width: renderer.width,
 			height: renderer.height,

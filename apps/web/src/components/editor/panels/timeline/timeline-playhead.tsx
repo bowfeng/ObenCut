@@ -8,14 +8,9 @@ import {
 } from "@/lib/timeline";
 import { useTimelinePlayhead } from "@/hooks/timeline/use-timeline-playhead";
 import { useEditor } from "@/hooks/use-editor";
-import {
-	TIMELINE_SCROLLBAR_SIZE_PX,
-} from "./layout";
-import { TIMELINE_LAYERS } from "./layers";
 
 interface TimelinePlayheadProps {
 	zoomLevel: number;
-	hasHorizontalScrollbar: boolean;
 	rulerRef: React.RefObject<HTMLDivElement | null>;
 	rulerScrollRef: React.RefObject<HTMLDivElement | null>;
 	tracksScrollRef: React.RefObject<HTMLDivElement | null>;
@@ -26,7 +21,6 @@ interface TimelinePlayheadProps {
 
 export function TimelinePlayhead({
 	zoomLevel,
-	hasHorizontalScrollbar,
 	rulerRef,
 	rulerScrollRef,
 	tracksScrollRef,
@@ -39,7 +33,7 @@ export function TimelinePlayhead({
 	const internalPlayheadRef = useRef<HTMLDivElement>(null);
 	const playheadRef = externalPlayheadRef || internalPlayheadRef;
 
-	const { handlePlayheadMouseDown } = useTimelinePlayhead({
+	const { playheadPosition, handlePlayheadMouseDown } = useTimelinePlayhead({
 		zoomLevel,
 		rulerRef,
 		rulerScrollRef,
@@ -48,23 +42,16 @@ export function TimelinePlayhead({
 	});
 
 	const timelineContainerHeight =
-		timelineRef.current?.clientHeight ??
 		tracksScrollRef.current?.clientHeight ??
+		timelineRef.current?.clientHeight ??
 		400;
-	const totalHeight = Math.max(
-		0,
-		timelineContainerHeight -
-			(hasHorizontalScrollbar ? TIMELINE_SCROLLBAR_SIZE_PX - 5 : 0),
-	);
+	const totalHeight = Math.max(0, timelineContainerHeight - 4);
 
-	const currentTime = editor.playback.getCurrentTime();
 	const centerPosition = timelineTimeToSnappedPixels({
-		time: currentTime,
+		time: playheadPosition,
 		zoomLevel,
 	});
-	const scrollLeft = tracksScrollRef.current?.scrollLeft ?? 0;
-	const leftPosition =
-		getCenteredLineLeft({ centerPixel: centerPosition }) - scrollLeft;
+	const leftPosition = getCenteredLineLeft({ centerPixel: centerPosition });
 
 	const handlePlayheadKeyDown = (
 		event: React.KeyboardEvent<HTMLDivElement>,
@@ -74,8 +61,10 @@ export function TimelinePlayhead({
 		event.preventDefault();
 		const step = 1 / Math.max(1, editor.project.getActive().settings.fps);
 		const direction = event.key === "ArrowRight" ? 1 : -1;
-		const now = editor.playback.getCurrentTime();
-		const nextTime = Math.max(0, Math.min(duration, now + direction * step));
+		const nextTime = Math.max(
+			0,
+			Math.min(duration, playheadPosition + direction * step),
+		);
 
 		editor.playback.seek({ time: nextTime });
 	};
@@ -87,24 +76,23 @@ export function TimelinePlayhead({
 			aria-label="Timeline playhead"
 			aria-valuemin={0}
 			aria-valuemax={duration}
-			aria-valuenow={currentTime}
+			aria-valuenow={playheadPosition}
 			tabIndex={0}
-			className="pointer-events-none absolute"
+			className="pointer-events-none absolute z-5"
 			style={{
 				left: `${leftPosition}px`,
 				top: 0,
 				height: `${totalHeight}px`,
 				width: `${TIMELINE_INDICATOR_LINE_WIDTH_PX}px`,
-				zIndex: TIMELINE_LAYERS.playhead,
 			}}
 			onKeyDown={handlePlayheadKeyDown}
 		>
-			<div className="bg-primary pointer-events-none absolute left-0 h-full w-0.5" />
+			<div className="bg-foreground pointer-events-none absolute left-0 h-full w-0.5" />
 
 			<button
 				type="button"
 				aria-label="Drag playhead"
-				className={`pointer-events-auto absolute top-1 left-1/2 size-3 -translate-x-1/2 transform cursor-col-resize rounded-full border-2 shadow-xs ${isSnappingToPlayhead ? "bg-primary border-primary" : "bg-primary border-primary/50"}`}
+				className={`pointer-events-auto absolute top-1 left-1/2 size-3 -translate-x-1/2 transform cursor-col-resize rounded-full border-2 shadow-xs ${isSnappingToPlayhead ? "bg-foreground border-foreground" : "bg-foreground border-foreground/50"}`}
 				onMouseDown={handlePlayheadMouseDown}
 			/>
 		</div>
