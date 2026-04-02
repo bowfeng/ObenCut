@@ -731,7 +731,7 @@ const ELEMENT_CONTENT_RENDERERS: Record<
 		const audioFile =
 			audioElement.sourceType === "upload" && mediaAsset?.file
 				? mediaAsset.file
-				: null;
+				: undefined;
 		const audioUrl =
 			audioElement.sourceType === "library"
 				? audioElement.sourceUrl

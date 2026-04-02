@@ -17,7 +17,7 @@ export class MediaManager {
 		asset,
 	}: {
 		projectId: string;
-		asset: MediaAsset & { id?: string };
+		asset: Omit<MediaAsset, "id"> & { id?: string };
 	}): Promise<void> {
 		const newAsset: MediaAsset = {
 			...asset,

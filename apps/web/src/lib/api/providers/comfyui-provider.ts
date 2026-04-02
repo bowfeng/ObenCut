@@ -17,7 +17,7 @@ import { ComfyUIWrapper } from "../comfyui/comfyui-wrapper";
 export interface ComfyUIConfig {
   host: string;
   port: number;
-  protocol?: "http" | "https";
+  protocol: "http" | "https";
 }
 
 function getComfyUIConfig(): ComfyUIConfig {

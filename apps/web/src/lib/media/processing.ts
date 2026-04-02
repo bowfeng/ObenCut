@@ -4,7 +4,9 @@ import { getMediaTypeFromFile } from "@/lib/media/media-utils";
 import { getVideoInfo } from "./mediabunny";
 import { Input, ALL_FORMATS, BlobSource, VideoSampleSink } from "mediabunny";
 
-export interface ProcessedMediaAsset extends Omit<MediaAsset, "id"> {}
+export interface ProcessedMediaAsset extends Omit<MediaAsset, "id"> {
+	id?: string;
+}
 
 const THUMBNAIL_MAX_WIDTH = 1280;
 const THUMBNAIL_MAX_HEIGHT = 720;

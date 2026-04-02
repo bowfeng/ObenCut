@@ -1,0 +1,37 @@
+[
+  {
+    "content": "Fix COMFYUI_URL environment variable error",
+    "activeForm": "Fixed COMFYUI_URL type definition",
+    "status": "completed"
+  },
+  {
+    "content": "Fix MediaAsset id type mismatch",
+    "activeForm": "Fixed MediaAsset type",
+    "status": "completed"
+  },
+  {
+    "content": "Fix File | null type error in timeline-element",
+    "activeForm": "Fixed File type",
+    "status": "completed"
+  },
+  {
+    "content": "Fix ComfyUI type errors",
+    "activeForm": "Fixed ComfyUI type errors",
+    "status": "completed"
+  },
+  {
+    "content": "Fix migration type errors",
+    "activeForm": "Fixed migration types",
+    "status": "completed"
+  },
+  {
+    "content": "Fix GenericTask type error",
+    "activeForm": "Fixed GenericTask type",
+    "status": "completed"
+  },
+  {
+    "content": "Fix remaining ComfyUI type errors",
+    "activeForm": "Fixing remaining ComfyUI type errors",
+    "status": "in_progress"
+  }
+]

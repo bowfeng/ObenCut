@@ -378,7 +378,7 @@ export class ComfyUIWrapper {
     const sanitizedParameters = this.sanitizeParameters(parameters);
     const injected: Record<string, unknown> = {};
 
-    for (const [nodeId, nodeData] of Object.entries(workflow)) {
+    for (const [nodeId, nodeData] of Object.entries(workflow as Record<string, unknown>)) {
       if (typeof nodeData === "object" && nodeData !== null && "inputs" in nodeData) {
         const node = nodeData as Record<string, unknown>;
         injected[nodeId] = {
@@ -423,10 +423,11 @@ export class ComfyUIWrapper {
 
     for (const [paramName, paramValue] of Object.entries(parameters)) {
       if (paramValue !== undefined && paramValue !== null) {
+        const paramValueStr = String(paramValue);
         // Replace {{paramName}} placeholders with actual values
         for (const [key, value] of Object.entries(merged)) {
           if (typeof value === "string") {
-            merged[key] = value.replace(`{{${paramName}}}`, paramValue);
+            merged[key] = value.replace(`{{${paramName}}}`, paramValueStr);
           }
         }
         merged[paramName] = paramValue;

@@ -137,7 +137,7 @@ export interface Image2AudioGenTask extends AudioGenTaskBase {
 /**
  * 通用任务（没有具体 type）
  */
-export interface GenericTask extends AllTaskFields {
+export interface GenericTask extends Omit<AllTaskFields, "resultElement"> {
   type: "generic";
   taskName: string;
   taskData?: Record<string, unknown>;

@@ -1,0 +1,32 @@
+0 verbose cli /home/bow/.nvm/versions/node/v24.14.0/bin/node /home/bow/.nvm/versions/node/v24.14.0/bin/npm
+1 info using npm@11.9.0
+2 info using node@v24.14.0
+3 silly config load:file:/home/bow/.nvm/versions/node/v24.14.0/lib/node_modules/npm/npmrc
+4 silly config load:file:/home/bow/programs/obenbut/.npmrc
+5 warn Unknown project config "node-linker". This will stop working in the next major version of npm.
+6 silly config load:file:/home/bow/programs/obenbut/.sandbox-home/.npmrc
+7 silly config load:file:/home/bow/.nvm/versions/node/v24.14.0/etc/npmrc
+8 verbose title npm run build
+9 verbose argv "run" "build"
+10 verbose logfile logs-max:10 dir:/home/bow/programs/obenbut/.sandbox-home/.npm/_logs/2026-04-02T05_52_19_679Z-
+11 verbose logfile /home/bow/programs/obenbut/.sandbox-home/.npm/_logs/2026-04-02T05_52_19_679Z-debug-0.log
+12 silly logfile done cleaning log files
+13 verbose stack Error: Missing script: "build"
+13 verbose stack
+13 verbose stack To see a list of scripts, run:
+13 verbose stack   npm run
+13 verbose stack     at #run (/home/bow/.nvm/versions/node/v24.14.0/lib/node_modules/npm/lib/commands/run.js:115:13)
+13 verbose stack     at async RunScript.exec (/home/bow/.nvm/versions/node/v24.14.0/lib/node_modules/npm/lib/commands/run.js:44:7)
+13 verbose stack     at async Npm.exec (/home/bow/.nvm/versions/node/v24.14.0/lib/node_modules/npm/lib/npm.js:208:9)
+13 verbose stack     at async module.exports (/home/bow/.nvm/versions/node/v24.14.0/lib/node_modules/npm/lib/cli/entry.js:67:5)
+14 error Missing script: "build"
+14 error
+14 error To see a list of scripts, run:
+14 error   npm run
+15 verbose cwd /home/bow/programs/obenbut
+16 verbose os Linux 6.6.87.2-microsoft-standard-WSL2
+17 verbose node v24.14.0
+18 verbose npm  v11.9.0
+19 verbose exit 1
+20 verbose code 1
+21 error A complete log of this run can be found in: /home/bow/programs/obenbut/.sandbox-home/.npm/_logs/2026-04-02T05_52_19_679Z-debug-0.log
